@@ -331,18 +331,18 @@ body {
 /* Le bouton fixe */
 .btn-nav {
     position: fixed;
-    bottom: 20px;          /* Distance par rapport au bas */
+    top: 50%;         /* Distance par rapport au bas */
     left: 50%;             /* Démarre au milieu de l'écran */
-    transform: translateX(-50%); /* Décale vers la gauche de la moitié de sa propre largeur */
+    transform: translateX(-50%,-50%); /* Décale vers la gauche de la moitié de sa propre largeur */
     
     z-index: 9999;         /* Pour être sûr qu'il soit au-dessus de tout */
     
     background-color: #fff;
     color: rgba(43,1,230,1);
-    padding: 10px 20px;
-    border-radius: 25px;   /* Plus arrondi pour un look bouton */
+    padding: 15px 30px;
+    border-radius: 30px;   /* Plus arrondi pour un look bouton */
     text-decoration: none;
-    font-size: 14px;
+    font-size: 16px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.2); /* Un peu d'ombre pour le faire ressortir */
     
     /* Animation de transition */
@@ -353,6 +353,6 @@ body {
 /* La classe pour masquer le bouton */
 .hidden {
     opacity: 0;
-    transform: translateX(-50%) translateY(20px); /* On le fait descendre un peu en disparaissant */
+    /* On le fait légèrement zoomer/dézoomer ou bouger en disparaissant */
+    transform: translate(-50%, -50%) scale(0.9);
     pointer-events: none;
-}
