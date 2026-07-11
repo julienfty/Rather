@@ -44,8 +44,8 @@ document.getElementById('translate-btn').addEventListener('click', async () => {
 
     resultArea.innerText = "Recherche...";
 
-    // A. Découpage
-    const tags = await tokens = await tokenize(text);
+    // A. Découpage (CORRIGÉ)
+    const tags = await tokenize(text);
     console.log("Tags identifiés :", tags);
 
     if (!tags) {
@@ -53,7 +53,7 @@ document.getElementById('translate-btn').addEventListener('click', async () => {
         return;
     }
     
-    // B. Recherche de la règle dans Supabase (Utilisation du type Array)
+    // B. Recherche de la règle dans Supabase
     console.log("Recherche dans la base avec le tableau :", tags);
 
     const { data: regles, error } = await sb
