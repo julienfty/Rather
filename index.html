@@ -464,7 +464,7 @@ function displayWordFromSupabase(row, query, targetContainer) {
 
   if (row.directionRecherche === "FR_TO_RATHER") {
     const principalFr = traductions[0] ? traductions[0].traduction_fr : "Mot français";
-    const contexteFr = traductions[0]?.contexte_fr ? `(${traductions[0].contexte_fr}) ` : '';
+    const contexteFr = traductions[0]?.contexte_fr ? `<span class="category" style="background:none; padding:0; color:#555; font-size:12px; margin-right:5px; font-style:italic;">(${traductions[0].contexte_fr})</span> ` : '';
      
     html += `<div class="word-line">`;
     html += `<span class="category">${category}</span>`;
@@ -687,9 +687,6 @@ searchInput.addEventListener("input", async () => {
   resultsDiv.innerHTML = "";
   if(!rawQuery.trim()) return;
 
-  // AJUSTEMENT DE LA RECHERCHE EN FONCTION DES ESPACES FINAUX
-  // Si la saisie se termine par un espace sans texte après (ex: "mot "), 
-  // on cherche uniquement le mot principal dans Supabase pour éviter le bruit.
   let effectiveQuery = rawQuery;
   const parts = rawQuery.split(" ").filter(p => p !== "");
   if (rawQuery.endsWith(" ") && parts.length > 0) {
@@ -789,22 +786,25 @@ searchInput.addEventListener("input", async () => {
   const motsAutorises = new Set();
   const limiteMaxMotsDistincts = 5;
 
-  // GESTION DÉCISIVE DU PALIER D'ESPACES
-  // Si la chaîne brute se termine par un espace pur, on fait comme si cet espace n'existait pas encore
-  // pour le comptage de notre palier, bloquant l'affichage prématuré des mots composés.
   const nombreEspacesQuery = (effectiveQuery.match(/ /g) || []).length;
 
   resultatsFiltrés.forEach(item => {
     let cleMotEtudie = "";
+    let contexteUnique = "";
+
     if (item.directionRecherche === "FR_TO_RATHER" && item.mots_francais && item.mots_francais[0]) {
       cleMotEtudie = item.mots_francais[0].traduction_fr.toLowerCase().trim();
+      contexteUnique = item.mots_francais[0].contexte_fr ? item.mots_francais[0].contexte_fr.toLowerCase().trim() : "";
     } else {
       cleMotEtudie = item.mot.toLowerCase().trim();
     }
 
+    // CLÉ D'UNICITÉ : On combine le mot ET son contexte (ex: "nous|inclusif")
+    // Ainsi, chaque variante de "nous" possède sa propre chance d'apparaître !
+    const cleUniqueCombinee = `${cleMotEtudie}|${contexteUnique}`;
+
     const nombreEspacesMot = (cleMotEtudie.match(/ /g) || []).length;
 
-    // Règle stricte des paliers basée sur la requête effective (sans l'espace traînant)
     if (nombreEspacesMot !== nombreEspacesQuery) {
       return; 
     }
@@ -813,8 +813,8 @@ searchInput.addEventListener("input", async () => {
     
     if (estCorrespondanceExacte) {
       displayWordFromSupabase(item, effectiveQuery.trim(), resultsDiv);
-    } else if (motsAutorises.has(cleMotEtudie) || motsAutorises.size < limiteMaxMotsDistincts) {
-      motsAutorises.add(cleMotEtudie);
+    } else if (motsAutorises.has(cleUniqueCombinee) || motsAutorises.size < limiteMaxMotsDistincts) {
+      motsAutorises.add(cleUniqueCombinee);
       displayWordFromSupabase(item, effectiveQuery.trim(), resultsDiv);
     }
   });
