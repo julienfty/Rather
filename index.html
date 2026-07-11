@@ -20,7 +20,6 @@ body {
   padding:0;
 }
 
-/* MODIFIÉ : Devient responsive et supprime les dimensions fixes du MacBook */
 .macbook-air {
   background: linear-gradient(113deg, rgba(35,26,76,1) 0%, rgba(43,1,230,1) 100%);
   width:100%;
@@ -29,21 +28,20 @@ body {
   display:flex;
   flex-direction:column;
   align-items:center;
-  padding: 8vh 20px 40px 20px; /* Marges de sécurité pour mobile */
+  padding: 8vh 20px 40px 20px;
 }
 
-/* MODIFIÉ : S'adapte à la taille de l'écran avec une taille de texte fluide */
 .text-wrapper {
   font-family:"arial black";
   font-weight: 900;
-  font-size: clamp(40px, 8vw, 100px); /* Gère proprement la taille sur mobile et PC */
+  font-size: clamp(40px, 8vw, 100px);
   color:#fff;
   text-shadow:0px 4px 40px rgba(0,0,0,0.7);
   margin-bottom:4vh;
   text-align: center;
 }
 
-/* MODIFIÉ : Hauteur en px pour éviter que la barre s'écrase sur mobile */
+/* MODIFIÉ : Ajout d'une transition pour le déroulement fluide */
 .rectangle {
   width:100%;
   max-width:932px;
@@ -52,12 +50,19 @@ body {
   border-radius: 28px;
   box-shadow:0px 4px 30px rgba(0,0,0,0.5);
   position:relative;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
 }
 
-/* MODIFIÉ : Taille de texte stable */
+/* NOUVEAU : Classe quand la fenêtre est déroulée au maximum (Tout voir) */
+.rectangle.expanded {
+  height: 60vh;
+  border-radius: 24px;
+}
+
 .search-input {
   width:100%;
-  height:100%;
+  height: 56px;
   border:none;
   background:transparent;
   font-size: 16px;
@@ -72,15 +77,64 @@ body {
     color: rgba(0,0,0,0.7);
 }
 
-.div {
-  color:rgba(0,0,0,0.7);
-  text-shadow:0px 4px 10px rgba(0,0,0,0.5);
-  font-size:14px;
-  margin-top:1vh;
-  text-align:center;
+/* NOUVEAU : Zone de contenu à l'intérieur de la barre déroulée */
+.expanded-content {
+  display: none;
+  height: calc(100% - 56px);
+  overflow-y: auto;
+  padding: 0 20px 20px 20px;
+}
+.rectangle.expanded .expanded-content {
+  display: block;
+}
+.rectangle.expanded .search-input {
+  border-bottom: 1px solid #eee;
 }
 
-/* MODIFIÉ : S'adapte à 100% de la largeur mobile */
+/* NOUVEAU : Bouton pour refermer le mode "Tout voir" */
+.close-btn {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  background: #f0f0f0;
+  border: none;
+  font-weight: bold;
+  padding: 4px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: none;
+  font-size: 12px;
+}
+.rectangle.expanded .close-btn {
+  display: block;
+}
+
+/* NOUVEAU : L'encoche "Tout voir" rattachée sous la barre */
+.see-all-notch {
+  background: white;
+  color: rgba(43,1,230,1);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 6px 16px 8px 16px;
+  border-radius: 0 0 14px 14px;
+  cursor: pointer;
+  box-shadow: 0px 10px 20px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: -1px; /* Colle l'encoche au rectangle */
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.see-all-notch:hover {
+  transform: translateY(2px);
+}
+.see-all-notch span {
+  font-size: 10px;
+}
+
 .results {
   width:100%;
   max-width:932px;
@@ -89,15 +143,22 @@ body {
   overflow-y:auto; 
 }
 
+/* Conteneur de résultats réutilisé pour l'intérieur de la fenêtre */
 .result {
   background:white;
   padding:12px 16px; 
   margin-bottom:8px;  
   border-radius:12px; 
-  box-shadow:0px 3px 8px rgba(0,0,0,0.4);
+  box-shadow:0px 3px 8px rgba(0,0,0,0.15);
   position: relative;
   display: flex;
   flex-direction: column;
+}
+
+/* Quand le résultat est dans la fenêtre ouverte, on adoucit l'ombre */
+.expanded-content .result {
+  box-shadow: 0px 2px 5px rgba(0,0,0,0.05);
+  border: 1px solid #eee;
 }
 
 .category { 
@@ -124,8 +185,6 @@ body {
   color: #000;
 }
 
-.translation { font-size:15px; color:#333; margin-left:5px; }
-
 .subword { 
   margin-left:15px; 
   margin-top: 6px;  
@@ -144,7 +203,6 @@ body {
   vertical-align: middle;
 }
 
-/* MODIFIÉ : Légèrement plus grande pour être cliquable facilement sur mobile */
 .info-icon {
   display: inline-flex;
   justify-content: center;
@@ -159,7 +217,6 @@ body {
   font-family: serif;
 }
 
-/* LA POPUP GLOBALE FIXE : Libérée du scroll, flou parfait et 100% visible */
 #global-tooltip {
   position: fixed;
   z-index: 999999; 
@@ -175,16 +232,12 @@ body {
   line-height: 1.4;
   box-shadow: 0px 10px 30px rgba(0,0,0,0.25);
   font-weight: 500;
-  
   backdrop-filter: blur(15px) !important;
   -webkit-backdrop-filter: blur(15px) !important;
 }
 
-/* MODIFIÉ : Max-width pour éviter que la popup sorte de l'écran sur les tout petits téléphones */
 @media (max-width: 340px) {
-  #global-tooltip {
-    width: 240px;
-  }
+  #global-tooltip { width: 240px; }
 }
 
 .tooltip-title {
@@ -202,20 +255,32 @@ body {
 
 <div class="macbook-air">
   <div class="text-wrapper">Rather</div>
-  <div class="rectangle">
+  
+  <!-- BARRE DE RECHERCHE EXTENSIBLE -->
+  <div class="rectangle" id="search-container">
     <input type="text" id="search" class="search-input" placeholder="Tape le mot que tu veux rechercher !">
+    <button class="close-btn" id="close-expanded">Fermer</button>
+    
+    <!-- Conteneur pour le mode dictionnaire complet -->
+    <div class="expanded-content" id="expanded-results"></div>
   </div>
+  
+  <!-- L'ENCOCHE TOUT VOIR -->
+  <div class="see-all-notch" id="see-all-trigger">
+    Tout voir <span>▼</span>
+  </div>
+
+  <!-- Zone de résultats normale (recherche classique) -->
   <div class="results" id="results"></div>
 </div>
 
-<!-- La popup magique qui ne sera jamais rognée -->
 <div id="global-tooltip"></div>
 
+<!-- COMPORTEMENT TOOLTIP (TACTILE & PC) -->
 <script>
 const globalTooltip = document.getElementById('global-tooltip');
 let activeIcon = null;
 
-// Fonction centrale pour afficher la popup
 function showTooltip(icon) {
   const title = icon.getAttribute('data-title') || "Étymologie";
   const text = icon.getAttribute('data-text');
@@ -225,12 +290,9 @@ function showTooltip(icon) {
   globalTooltip.style.display = 'block';
 
   const rect = icon.getBoundingClientRect();
-  
-  // Calcul de la position optimale centrée au-dessus du bouton
   let topPosition = rect.top + window.scrollY - globalTooltip.offsetHeight - 10;
   let leftPosition = rect.left + window.scrollX - (globalTooltip.offsetWidth / 2) + (rect.width / 2);
 
-  // Sécurité pour empêcher la popup de sortir de l'écran par la gauche ou la droite sur mobile
   if (leftPosition < 10) leftPosition = 10;
   if (leftPosition + globalTooltip.offsetWidth > window.innerWidth - 10) {
     leftPosition = window.innerWidth - globalTooltip.offsetWidth - 10;
@@ -241,66 +303,53 @@ function showTooltip(icon) {
   activeIcon = icon;
 }
 
-// Fonction pour cacher la popup
 function hideTooltip() {
   globalTooltip.style.display = 'none';
   activeIcon = null;
 }
 
-// Détection de la présence d'un écran tactile (Mobile/Tablette)
 const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
 if (!isTouchDevice) {
-  // --- COMPORTEMENT ORDINATEUR : Survol souris ---
   document.addEventListener('mouseover', function(e) {
     const icon = e.target.closest('.info-icon');
     if (icon) showTooltip(icon);
   });
-
   document.addEventListener('mouseout', function(e) {
     if (e.target.closest('.info-icon')) hideTooltip();
   });
 } else {
-  // --- COMPORTEMENT MOBILE / TABLETTE : Toucher/Clic ---
   document.addEventListener('click', function(e) {
     const icon = e.target.closest('.info-icon');
-    
     if (icon) {
-      e.stopPropagation(); // Évite les conflits de clic
-      // Si on clique sur l'icône déjà active, on la ferme, sinon on l'ouvre
-      if (activeIcon === icon) {
-        hideTooltip();
-      } else {
-        showTooltip(icon);
-      }
-    } else {
-      // Clic n'importe où ailleurs sur l'écran ferme la popup
-      hideTooltip();
-    }
+      e.stopPropagation();
+      if (activeIcon === icon) { hideTooltip(); } else { showTooltip(icon); }
+    } else { hideTooltip(); }
   });
 }
 </script>
 
-<!-- 1. ON CHARGE LA BIBLIOTHÈQUE SUPABASE TOUT EN HAUT DU SCRIPT -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+<!-- MOTEUR DE RECHERCHE ET SYSTÈME DE DÉROULEMENT -->
 <script>
-// 2. CONFIGURATION DE TA CONNEXION
 const SUPABASE_URL = "https://hfrdzcjfienvegrofszz.supabase.co";
 const SUPABASE_KEY = "sb_publishable_U6qUMbeePU0ykN99-OQsNg_FGYTo0iZ";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const searchInput = document.getElementById("search");
 const resultsDiv = document.getElementById("results");
+const searchContainer = document.getElementById("search-container");
+const seeAllTrigger = document.getElementById("see-all-trigger");
+const closeExpanded = document.getElementById("close-expanded");
+const expandedResults = document.getElementById("expanded-results");
 
-// Fonction de surlignage
 function highlight(text, query){
   if(!text || !query) return text || "";
   const regex = new RegExp(`(${query})`, 'gi');
   return text.replace(regex, `<span class="highlight">$1</span>`);
 }
 
-// Génère la petite icône 'i' avec l'infobulle d'étymologie
 function createEtymHtml(etymText) {
   if (!etymText) return '';
   return `<span class="etym-container">
@@ -308,8 +357,8 @@ function createEtymHtml(etymText) {
           </span>`;
 }
 
-// LA FONCTION D'AFFICHAGE INTELLIGENTE ET INVERSABLE
-function displayWordFromSupabase(row, query) {
+// Modifiée pour accepter un conteneur cible (recherche normale ou fenêtre Tout voir)
+function displayWordFromSupabase(row, query, targetContainer) {
   const div = document.createElement("div");
   div.classList.add("result");
 
@@ -361,16 +410,78 @@ function displayWordFromSupabase(row, query) {
   }
 
   div.innerHTML = html;
-  resultsDiv.appendChild(div);
+  targetContainer.appendChild(div);
 }
 
-// L'ÉCOUTEUR DE RECHERCHE AVEC EXCEPTION POUR DOUBLONS DE SENS
+// --- LOGIQUE DU MODE "TOUT VOIR" ---
+seeAllTrigger.addEventListener("click", async () => {
+  // Changement d'état visuel
+  searchContainer.classList.add("expanded");
+  seeAllTrigger.style.opacity = "0";
+  seeAllTrigger.style.pointerEvents = "none";
+  expandedResults.innerHTML = "<div style='color:#666; text-align:center; padding-top:20px; font-size:14px;'>Chargement de tout le dictionnaire...</div>";
+  resultsDiv.innerHTML = "";
+  searchInput.value = "";
+  searchInput.placeholder = "Filtrer dans tout le dictionnaire...";
+
+  // Récupération globale de tous les mots Rather classés par ordre alphabétique
+  const { data, error } = await supabaseClient
+    .from('mots_rather')
+    .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
+    .order('mot', { ascending: true });
+
+  expandedResults.innerHTML = "";
+
+  if (error || !data || data.length === 0) {
+    expandedResults.innerHTML = "<div style='color:#666; text-align:center; padding-top:20px;'>Impossible de charger les mots.</div>";
+    return;
+  }
+
+  // Stockage local temporaire pour pouvoir filtrer en direct dans la fenêtre ouverte
+  window.allWordsCache = data.map(item => ({ ...item, directionRecherche: "RATHER_TO_FR" }));
+  
+  // Affichage complet
+  window.allWordsCache.forEach(row => displayWordFromSupabase(row, "", expandedResults));
+});
+
+// Fermeture de la fenêtre
+closeExpanded.addEventListener("click", () => {
+  searchContainer.classList.remove("expanded");
+  seeAllTrigger.style.opacity = "1";
+  seeAllTrigger.style.pointerEvents = "auto";
+  searchInput.value = "";
+  searchInput.placeholder = "Tape le mot que tu veux rechercher !";
+  expandedResults.innerHTML = "";
+  window.allWordsCache = null;
+});
+
+// --- RECHERCHE ET FILTRAGE EN DIRECT ---
 searchInput.addEventListener("input", async () => {
   let query = searchInput.value.toLowerCase().trim();
+  
+  // Cas 1 : Si la fenêtre "Tout voir" est active, on filtre le cache local instantanément
+  if (searchContainer.classList.contains("expanded")) {
+    expandedResults.innerHTML = "";
+    if (!window.allWordsCache) return;
+    
+    const filtered = window.allWordsCache.filter(item => {
+      const matchRather = item.mot && item.mot.toLowerCase().includes(query);
+      const matchFr = item.mots_francais && (Array.isArray(item.mots_francais) ? item.mots_francais : [item.mots_francais]).some(f => f.traduction_fr && f.traduction_fr.toLowerCase().includes(query));
+      return matchRather || matchFr;
+    });
+
+    if(filtered.length === 0) {
+      expandedResults.innerHTML = "<div style='color:#666; text-align:center; padding-top:20px; font-size:14px;'>Aucun résultat trouvé.</div>";
+    } else {
+      filtered.forEach(row => displayWordFromSupabase(row, query, expandedResults));
+    }
+    return;
+  }
+
+  // Cas 2 : Mode de recherche classique (Fenêtre fermée)
   resultsDiv.innerHTML = "";
   if(!query) return;
 
-  // Récupération des données
   const requeteRather = supabaseClient
     .from('mots_rather')
     .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
@@ -402,13 +513,10 @@ searchInput.addEventListener("input", async () => {
     });
   }
 
-  // Fusion de toutes les lignes trouvées
   const listePlat = [...donneesRather, ...donneesFrancais];
-
   let meilleurScoreRatherGlobal = 0;
   let meilleurScoreFrGlobal = 0;
 
-  // Attribution des scores
   const resultatsScorés = listePlat.map(item => {
     const ratherMot = item.mot ? item.mot.toLowerCase() : "";
     
@@ -425,17 +533,13 @@ searchInput.addEventListener("input", async () => {
 
     let scoreFr = 0;
     let aUnMatchFr = false; 
-    let estMatchParfaitFr = false;
 
     if (item.mots_francais && Array.isArray(item.mots_francais)) {
       item.mots_francais.forEach(f => {
         if (f.traduction_fr) {
           const trad = f.traduction_fr.toLowerCase();
           let currentFrScore = 0;
-          if (trad === query) {
-            currentFrScore = 100;
-            estMatchParfaitFr = true;
-          }
+          if (trad === query) currentFrScore = 100;
           else if (trad.startsWith(query)) currentFrScore = 50;
           else if (trad.includes(query)) currentFrScore = 10;
 
@@ -450,20 +554,11 @@ searchInput.addEventListener("input", async () => {
     }
     if (scoreFr > meilleurScoreFrGlobal) meilleurScoreFrGlobal = scoreFr;
 
-    return { 
-      ...item, 
-      scoreRather, 
-      scoreFr, 
-      aUnMatchFr, 
-      estMatchParfaitRather: (ratherMot === query),
-      estMatchParfaitFr
-    };
+    return { ...item, scoreRather, scoreFr, aUnMatchFr };
   });
 
-  // Détermination de la langue cible
   const modeExclusif = meilleurScoreRatherGlobal >= meilleurScoreFrGlobal ? "RATHER_ONLY" : "FR_ONLY";
 
-  // Premier filtrage par langue et assignation de la direction
   let resultatsFiltrés = resultatsScorés.filter(item => {
     return modeExclusif === "RATHER_ONLY" ? item.scoreRather > 0 : item.aUnMatchFr;
   }).map(item => {
@@ -474,40 +569,26 @@ searchInput.addEventListener("input", async () => {
     };
   });
 
-  // --- LE COEUR DE TON EXCEPTION ---
-  // On regarde s'il y a un ou plusieurs matchs exacts (Score = 100)
-  const aUnMatchParfaitGlobal = resultatsFiltrés.some(item => 
-    modeExclusif === "RATHER_ONLY" ? item.estMatchParfaitRather : item.estMatchParfaitFr
-  );
+  resultatsFiltrés.sort((a, b) => b.finalScore - a.finalScore);
 
-  if (aUnMatchParfaitGlobal) {
-    // CONDITION SPÉCIALE : On ne garde QUE les lignes qui correspondent exactement à ce mot exact
-    resultatsFiltrés = resultatsFiltrés.filter(item => 
-      modeExclusif === "RATHER_ONLY" ? item.estMatchParfaitRather : item.estMatchParfaitFr
-    );
-    
-    // On affiche l'intégralité des traductions sans AUCUNE limite de 5 !
-    resultatsFiltrés.forEach(row => displayWordFromSupabase(row, query));
+  const motsAutorises = new Set();
+  const limiteMaxMotsDistincts = 5;
 
-  } else {
-    // COMPORTEMENT NORMAL : Si c'est une recherche partielle (ex: l'utilisateur écrit juste "at")
-    // On applique le dédoublonnage classique par mot pour ne pas surcharger
-    const resultatsUniques = [];
-    const motsVus = new Set();
+  resultatsFiltrés.forEach(item => {
+    let cleMotEtudie = "";
+    if (item.directionRecherche === "FR_TO_RATHER" && item.mots_francais && item.mots_francais[0]) {
+      cleMotEtudie = item.mots_francais[0].traduction_fr.toLowerCase().trim();
+    } else {
+      cleMotEtudie = item.mot.toLowerCase().trim();
+    }
 
-    resultatsFiltrés.forEach(item => {
-      if (item.mot && !motsVus.has(item.mot)) {
-        motsVus.add(item.mot);
-        resultatsUniques.push(item);
-      }
-    });
+    if (cleMotEtudie.includes(" ")) return; 
 
-    // Tri par score
-    resultatsUniques.sort((a, b) => b.finalScore - a.finalScore);
-
-    // On applique la limite historique des 5 premiers résultats
-    resultatsUniques.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
-  }
+    if (motsAutorises.has(cleMotEtudie) || motsAutorises.size < limiteMaxMotsDistincts) {
+      motsAutorises.add(cleMotEtudie);
+      displayWordFromSupabase(item, query, resultsDiv);
+    }
+  });
 });
 </script>
 </body>
