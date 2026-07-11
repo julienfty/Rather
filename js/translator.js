@@ -2,15 +2,14 @@
 const sb = window.supabaseClient;
 const resultArea = document.getElementById('result-area');
 
-// 2. Définition des actions (le "cerveau")
+// 2. Définition des actions
 const ActionsComposition = {
     assembler_pronom: (tags) => "Traduction pronom simple",
     assembler_pronom_inexgen: (tags) => "Traduction pronom complexe"
 };
 
-// 3. Tokenizer corrigé avec les bons noms de colonnes
+// 3. Tokenizer
 async function tokenize(word) {
-    // Utilisation de 'code' et 'tag_machine' selon ta structure DB
     const { data: briques, error } = await sb.from('briques').select('code, tag_machine');
     
     if (error) {
@@ -18,7 +17,6 @@ async function tokenize(word) {
         return null;
     }
     
-    // Trie par longueur de 'code' décroissante
     briques.sort((a, b) => b.code.length - a.code.length);
 
     let remaining = word;
@@ -28,7 +26,7 @@ async function tokenize(word) {
         let found = false;
         for (let b of briques) {
             if (remaining.startsWith(b.code)) {
-                tokens.push(b.tag_machine); // Utilisation de tag_machine
+                tokens.push(b.tag_machine);
                 remaining = remaining.slice(b.code.length);
                 found = true;
                 break;
@@ -56,16 +54,19 @@ document.getElementById('translate-btn').addEventListener('click', async () => {
     }
     
     // B. Recherche de la règle dans Supabase
-    // Note : Supabase attend le tableau de tags tel quel
+    // On transforme le tableau en texte pour correspondre au type 'varchar' de la base
+    const tagsString = tags.join(','); 
+    console.log("Recherche dans la base avec la chaîne :", tagsString);
+
     const { data: regle, error } = await sb
         .from('regle_composition')
         .select('*')
-        .eq('ordre_tags', tags)
-        .single();
+        .eq('ordre_tags', tagsString) // Utilisation de la chaîne de texte
+        .maybeSingle(); // Plus sûr que .single()
 
     if (error || !regle) {
         console.error("Erreur règle:", error);
-        resultArea.innerText = "Règle non trouvée pour : " + tags.join(' + ');
+        resultArea.innerText = "Règle non trouvée pour : " + tagsString;
         return;
     }
 
