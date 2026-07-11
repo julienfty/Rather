@@ -1,30 +1,25 @@
-// Tu n'as pas besoin de faire autre chose, il est déjà chargé !
-// On crée un raccourci local pour rendre le code plus lisible
+// 1. Initialisation
 const sb = window.supabaseClient;
+const resultArea = document.getElementById('result-area');
 
-// Maintenant, tu peux l'utiliser sans erreur :
-async function testConnection() {
-    if (!sb) {
-        console.error("Le client Supabase n'est pas encore prêt !");
-        return;
+// 2. Définition des actions (le "cerveau")
+const ActionsComposition = {
+    assembler_pronom: (tags) => "Traduction pronom simple",
+    assembler_pronom_inexgen: (tags) => "Traduction pronom complexe"
+};
+
+// 3. Tokenizer corrigé avec les bons noms de colonnes
+async function tokenize(word) {
+    // Utilisation de 'code' et 'tag_machine' selon ta structure DB
+    const { data: briques, error } = await sb.from('briques').select('code, tag_machine');
+    
+    if (error) {
+        console.error("Erreur briques:", error);
+        return null;
     }
     
-    // Exemple d'utilisation
-    const { data, error } = await sb.from('briques').select('*');
-    if (error) console.error(error);
-    else console.log("Données reçues :", data);
-}
-
-// Appel de ta fonction quand tu veux :
-testConnection();
-
-async function tokenize(word) {
-    const { data: briques, error } = await sb.from('briques').select('lettre, tag');
-    if (error) { console.error("Erreur briques:", error); return null; }
-    
-    // TRÈS IMPORTANT : Trie par longueur décroissante
-    // Cela permet de tester "nia" avant de tester "n"
-    briques.sort((a, b) => b.lettre.length - a.lettre.length);
+    // Trie par longueur de 'code' décroissante
+    briques.sort((a, b) => b.code.length - a.code.length);
 
     let remaining = word;
     let tokens = [];
@@ -32,38 +27,52 @@ async function tokenize(word) {
     while (remaining.length > 0) {
         let found = false;
         for (let b of briques) {
-            if (remaining.startsWith(b.lettre)) {
-                tokens.push(b.tag);
-                remaining = remaining.slice(b.lettre.length);
+            if (remaining.startsWith(b.code)) {
+                tokens.push(b.tag_machine); // Utilisation de tag_machine
+                remaining = remaining.slice(b.code.length);
                 found = true;
                 break;
             }
         }
-        if (!found) {
-            console.warn("Impossible de découper : " + remaining);
-            return null; 
-        }
+        if (!found) return null;
     }
     return tokens;
 }
 
+// 4. Moteur principal
 document.getElementById('translate-btn').addEventListener('click', async () => {
     const text = document.getElementById('source-text').value.trim();
+    if (!text) return;
+
+    resultArea.innerText = "Recherche...";
+
+    // A. Découpage
     const tags = await tokenize(text);
-    
-    console.log("Tags identifiés :", tags); // <-- REGARDE ÇA DANS LA CONSOLE
+    console.log("Tags identifiés :", tags);
 
     if (!tags) {
-        resultArea.innerText = "Mot inconnu.";
+        resultArea.innerText = "Erreur : Mot inconnu ou découpage impossible.";
+        return;
+    }
+    
+    // B. Recherche de la règle dans Supabase
+    // Note : Supabase attend le tableau de tags tel quel
+    const { data: regle, error } = await sb
+        .from('regle_composition')
+        .select('*')
+        .eq('ordre_tags', tags)
+        .single();
+
+    if (error || !regle) {
+        console.error("Erreur règle:", error);
+        resultArea.innerText = "Règle non trouvée pour : " + tags.join(' + ');
         return;
     }
 
-    const { data: regle, error } = await sb
-        .from('regles_composition')
-        .select('*')
-        .eq('ordre_tags', tags) // Supabase va comparer le tableau
-        .single();
-    
-    console.log("Règle trouvée :", regle); // <-- REGARDE SI C'EST NULL
-    // ... reste du code
+    // C. Exécution de l'action
+    if (typeof ActionsComposition[regle.action] === 'function') {
+        resultArea.innerText = ActionsComposition[regle.action](tags);
+    } else {
+        resultArea.innerText = "Erreur : Action '" + regle.action + "' non définie.";
+    }
 });
