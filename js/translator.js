@@ -30,12 +30,14 @@ async function tokenize(word) {
     return tokens;
 }
 
+// 4. Moteur principal
 document.getElementById('translate-btn').addEventListener('click', async () => {
     const text = document.getElementById('source-text').value.trim();
     if (!text) return;
 
     resultArea.innerText = "Recherche...";
 
+    // A. Découpage (Simple et propre)
     const tags = await tokenize(text);
     console.log("Tags identifiés :", tags);
 
@@ -44,6 +46,8 @@ document.getElementById('translate-btn').addEventListener('click', async () => {
         return;
     }
     
+    // B. Recherche de la règle
+    console.log("Recherche dans la base...");
     const { data: regles, error } = await sb
         .from('regle_composition')
         .select('*')
