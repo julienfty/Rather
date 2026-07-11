@@ -246,41 +246,47 @@ searchInput.addEventListener("input", async () => {
   resultsDiv.innerHTML = "";
   if(!query) return;
 
-  // On prépare la requête magique qui fouille dans les deux tables en même temps !
-  // On demande le mot, sa catégorie, son étymologie globale, et TOUTES ses significations
-  let recherche = supabaseClient
+  // On prépare le texte de recherche avec les % pour le mode flou
+  const rechercheTexte = searchInput.value.includes(" ") ? query : `%${query}%`;
+  const operateur = searchInput.value.includes(" ") ? 'eq' : 'ilike';
+
+  // REQUÊTE 1 : On cherche si ça correspond à un mot Rather
+  const requeteRather = supabaseClient
     .from('mots_rather')
-    .select(`
-      mot,
-      categorie,
-      etymologie,
-      mots_francais (
-        traduction_fr,
-        contexte_fr,
-        etymologie
-      )
-    `);
+    .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
+    [operateur]('mot', rechercheTexte)
+    .limit(5);
 
-  // Gestion de la recherche stricte (si l'utilisateur met un espace)
-  if (searchInput.value.includes(" ")) {
-    // Recherche stricte
-    recherche = recherche.or(`mot.eq.${query}, mots_francais.traduction_fr.eq.${query}`);
-  } else {
-    // Recherche floue (contient le texte) : Syntaxe officielle et ultra-sûre pour les tables liées
-    recherche = recherche.or(`mot.ilike.%${query}%, mots_francais(traduction_fr).ilike.%${query}%`);
-  }
+  // REQUÊTE 2 : On cherche si ça correspond à une traduction française
+  const requeteFrancais = supabaseClient
+    .from('mots_rather')
+    .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
+    [operateur]('mots_francais.traduction_fr', rechercheTexte)
+    .limit(5);
 
-  // On limite à 5 résultats maximum comme dans ton ancien code
-  const { data, error } = await recherche.limit(5);
+  // On lance les deux requêtes en même temps pour que ce soit instantané
+  const [resRather, resFrancais] = await Promise.all([requeteRather, requeteFrancais]);
 
-  if (error) {
-    console.error("Erreur Supabase :", error);
-    return;
-  }
+  if (resRather.error) console.error("Erreur recherche Rather :", resRather.error);
+  if (resFrancais.error) console.error("Erreur recherche Français :", resFrancais.error);
 
-  // On affiche les résultats trouvés à l'écran
-  if (data && data.length > 0) {
-    data.forEach(row => displayWordFromSupabase(row, query));
+  // On fusionne les résultats des deux recherches
+  const listePlat = [...(resRather.data || []), ...(resFrancais.data || [])];
+
+  // On élimine les doublons au cas où un mot correspondrait aux deux requêtes
+  const resultatsUniques = [];
+  const motsVus = new Set();
+
+  listePlat.forEach(item => {
+    if (!motsVus.has(item.mot)) {
+      motsVus.add(item.mot);
+      resultatsUniques.push(item);
+    }
+  });
+
+  // On affiche les 5 premiers résultats uniques trouvés !
+  if (resultatsUniques.length > 0) {
+    resultatsUniques.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
   }
 });
 </script>
