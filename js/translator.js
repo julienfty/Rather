@@ -1,33 +1,69 @@
-// Exemple simplifié de ce que ton script doit faire
+// 1. Définition des actions (le "cerveau" qui construit la traduction)
+const ActionsComposition = {
+    assembler_pronom: (tags) => {
+        return "Traduction pronom simple (ex: nous)";
+    },
+    assembler_pronom_inexgen: (tags) => {
+        return "Traduction pronom complexe (ex: nous exclusif)";
+    }
+};
+
+// 2. Le Tokenizer (découpe le mot en tags)
 async function tokenize(word) {
-    // 1. Récupérer toutes tes briques depuis Supabase
-    const { data: briques } = await supabase.from('briques').select('*');
+    const { data: briques } = await supabase.from('briques').select('lettre, tag');
     
-    // 2. Découper ton mot (ex: "niax") en ses éléments constitutifs
-    // Ici, il faut une logique pour identifier chaque morceau
-    // ex: "n" -> {tag: 'PRONOM', sens: 'P1'}
-    return tokens; 
+    // On trie les briques par longueur (les plus longues d'abord)
+    briques.sort((a, b) => b.lettre.length - a.lettre.length);
+
+    let remaining = word;
+    let tokens = [];
+
+    while (remaining.length > 0) {
+        let found = false;
+        for (let b of briques) {
+            if (remaining.startsWith(b.lettre)) {
+                tokens.push(b.tag);
+                remaining = remaining.slice(b.lettre.length);
+                found = true;
+                break;
+            }
+        }
+        if (!found) return null; // Mot inconnu
+    }
+    return tokens;
 }
 
+// 3. Le moteur principal
 document.getElementById('translate-btn').addEventListener('click', async () => {
-    const text = document.getElementById('source-text').value;
+    const text = document.getElementById('source-text').value.trim();
     const resultArea = document.getElementById('result-area');
     
-    // 1. Découpage en tags (Tokenizer)
+    if (!text) return;
+
+    // A. Découpage
     const tags = await tokenize(text);
+    if (!tags) {
+        resultArea.innerText = "Erreur : Mot inconnu dans le dictionnaire.";
+        return;
+    }
     
-    // 2. Recherche de la règle dans Supabase
-    const { data: regle } = await supabase
+    // B. Recherche de la règle dans Supabase
+    const { data: regle, error } = await supabase
         .from('regles_composition')
         .select('*')
-        .contains('ordre_tags', [/* liste des tags trouvés */])
+        .eq('ordre_tags', tags)
         .single();
 
-    if (regle) {
-        // 3. Exécution de la méthode
-        const traduction = await window[regle.action](tags);
+    if (error || !regle) {
+        resultArea.innerText = "Règle de composition non trouvée pour : " + tags.join(' + ');
+        return;
+    }
+
+    // C. Exécution de l'action
+    if (typeof ActionsComposition[regle.action] === 'function') {
+        const traduction = ActionsComposition[regle.action](tags);
         resultArea.innerText = traduction;
     } else {
-        resultArea.innerText = "Règle de composition non trouvée.";
+        resultArea.innerText = "Erreur : Action '" + regle.action + "' non définie dans le code.";
     }
 });
