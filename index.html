@@ -20,47 +20,51 @@ body {
   padding:0;
 }
 
+/* MODIFIÉ : Devient responsive et supprime les dimensions fixes du MacBook */
 .macbook-air {
   background: linear-gradient(113deg, rgba(35,26,76,1) 0%, rgba(43,1,230,1) 100%);
-  width:100vw;
-  height:100vh;
-  min-width:1280px;
-  min-height:832px;
+  width:100%;
+  min-height:100vh;
   position:relative;
   display:flex;
   flex-direction:column;
   align-items:center;
-  padding-top:10vh;
+  padding: 8vh 20px 40px 20px; /* Marges de sécurité pour mobile */
 }
 
+/* MODIFIÉ : S'adapte à la taille de l'écran avec une taille de texte fluide */
 .text-wrapper {
   font-family:"arial black";
   font-weight: 900;
-  font-size: 10vw;
+  font-size: clamp(40px, 8vw, 100px); /* Gère proprement la taille sur mobile et PC */
   color:#fff;
   text-shadow:0px 4px 40px rgba(0,0,0,0.7);
-  margin-bottom:5vh;
+  margin-bottom:4vh;
+  text-align: center;
 }
 
+/* MODIFIÉ : Hauteur en px pour éviter que la barre s'écrase sur mobile */
 .rectangle {
-  width:60vw;
+  width:100%;
   max-width:932px;
-  height:7vh;
+  height: 56px;
   background-color:white;
-  border-radius: 10vh;
+  border-radius: 28px;
   box-shadow:0px 4px 30px rgba(0,0,0,0.5);
   position:relative;
 }
 
+/* MODIFIÉ : Taille de texte stable */
 .search-input {
   width:100%;
   height:100%;
   border:none;
   background:transparent;
-  font-size:2vh;
+  font-size: 16px;
   font-family:"Inter", sans-serif;
   font-weight: 500;
-  padding-left:2vw;
+  padding-left: 20px;
+  padding-right: 20px;
   outline:none;
   color:#000;
 }
@@ -71,13 +75,14 @@ body {
 .div {
   color:rgba(0,0,0,0.7);
   text-shadow:0px 4px 10px rgba(0,0,0,0.5);
-  font-size:2vh;
+  font-size:14px;
   margin-top:1vh;
   text-align:center;
 }
 
+/* MODIFIÉ : S'adapte à 100% de la largeur mobile */
 .results {
-  width:60vw;
+  width:100%;
   max-width:932px;
   max-height:55vh; 
   margin-top:2vh;  
@@ -86,8 +91,8 @@ body {
 
 .result {
   background:white;
-  padding:10px 14px; 
-  margin-bottom:6px;  
+  padding:12px 16px; 
+  margin-bottom:8px;  
   border-radius:12px; 
   box-shadow:0px 3px 8px rgba(0,0,0,0.4);
   position: relative;
@@ -115,7 +120,7 @@ body {
   flex-wrap: wrap;
   font-size:18px; 
   font-weight:700; 
-  line-height: 1.2;
+  line-height: 1.3;
   color: #000;
 }
 
@@ -123,9 +128,10 @@ body {
 
 .subword { 
   margin-left:15px; 
-  margin-top: 4px;  
+  margin-top: 6px;  
   margin-bottom: 2px; 
-  line-height: 1.2;
+  line-height: 1.3;
+  font-size: 15px;
 }
 
 .highlight { background: yellow; }
@@ -138,16 +144,17 @@ body {
   vertical-align: middle;
 }
 
+/* MODIFIÉ : Légèrement plus grande pour être cliquable facilement sur mobile */
 .info-icon {
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  width: 15px;
-  height: 15px;
+  width: 18px;
+  height: 18px;
   background-color: rgba(43,1,230,1);
   color: white;
   border-radius: 50%;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: bold;
   font-family: serif;
 }
@@ -155,11 +162,11 @@ body {
 /* LA POPUP GLOBALE FIXE : Libérée du scroll, flou parfait et 100% visible */
 #global-tooltip {
   position: fixed;
-  z-index: 999999; /* Devant absolument TOUT sur le site */
-  pointer-events: none; /* Évite les bugs quand la souris passe dessus */
-  display: none; /* Cachée par défaut */
+  z-index: 999999; 
+  pointer-events: none; 
+  display: none; 
   width: 280px;
-  background-color: rgba(255, 255, 255, 0.75) !important; 
+  background-color: rgba(255, 255, 255, 0.45) !important; 
   color: #111;
   text-align: left;
   border-radius: 14px;
@@ -169,9 +176,15 @@ body {
   box-shadow: 0px 10px 30px rgba(0,0,0,0.25);
   font-weight: 500;
   
-  /* L'effet Frosted Glass iOS original et ultra-propre */
   backdrop-filter: blur(15px) !important;
   -webkit-backdrop-filter: blur(15px) !important;
+}
+
+/* MODIFIÉ : Max-width pour éviter que la popup sorte de l'écran sur les tout petits téléphones */
+@media (max-width: 340px) {
+  #global-tooltip {
+    width: 240px;
+  }
 }
 
 .tooltip-title {
@@ -194,41 +207,78 @@ body {
   </div>
   <div class="results" id="results"></div>
 </div>
+
 <!-- La popup magique qui ne sera jamais rognée -->
 <div id="global-tooltip"></div>
 
 <script>
 const globalTooltip = document.getElementById('global-tooltip');
+let activeIcon = null;
 
-// On écoute le survol sur toute la page pour détecter les icônes d'étymologie
-document.addEventListener('mouseover', function(e) {
-  const icon = e.target.closest('.info-icon');
-  if (!icon) return;
-
-  // On récupère le texte de l'étymologie caché dans l'attribut du bouton
+// Fonction centrale pour afficher la popup
+function showTooltip(icon) {
   const title = icon.getAttribute('data-title') || "Étymologie";
   const text = icon.getAttribute('data-text');
-  
   if (!text) return;
 
-  // On remplit la popup
   globalTooltip.innerHTML = `<span class="tooltip-title">${title}</span>${text}`;
   globalTooltip.style.display = 'block';
 
-  // On positionne la popup pile au-dessus de l'icône (i)
   const rect = icon.getBoundingClientRect();
   
-  // Calcul de la position (centré au-dessus de l'icône)
-  globalTooltip.style.top = (rect.top + window.scrollY - globalTooltip.offsetHeight - 10) + 'px';
-  globalTooltip.style.left = (rect.left + window.scrollX - (globalTooltip.offsetWidth / 2) + (rect.width / 2)) + 'px';
-});
+  // Calcul de la position optimale centrée au-dessus du bouton
+  let topPosition = rect.top + window.scrollY - globalTooltip.offsetHeight - 10;
+  let leftPosition = rect.left + window.scrollX - (globalTooltip.offsetWidth / 2) + (rect.width / 2);
 
-// On cache la popup dès que la souris s'en va
-document.addEventListener('mouseout', function(e) {
-  if (e.target.closest('.info-icon')) {
-    globalTooltip.style.display = 'none';
+  // Sécurité pour empêcher la popup de sortir de l'écran par la gauche ou la droite sur mobile
+  if (leftPosition < 10) leftPosition = 10;
+  if (leftPosition + globalTooltip.offsetWidth > window.innerWidth - 10) {
+    leftPosition = window.innerWidth - globalTooltip.offsetWidth - 10;
   }
-});
+
+  globalTooltip.style.top = topPosition + 'px';
+  globalTooltip.style.left = leftPosition + 'px';
+  activeIcon = icon;
+}
+
+// Fonction pour cacher la popup
+function hideTooltip() {
+  globalTooltip.style.display = 'none';
+  activeIcon = null;
+}
+
+// Détection de la présence d'un écran tactile (Mobile/Tablette)
+const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+if (!isTouchDevice) {
+  // --- COMPORTEMENT ORDINATEUR : Survol souris ---
+  document.addEventListener('mouseover', function(e) {
+    const icon = e.target.closest('.info-icon');
+    if (icon) showTooltip(icon);
+  });
+
+  document.addEventListener('mouseout', function(e) {
+    if (e.target.closest('.info-icon')) hideTooltip();
+  });
+} else {
+  // --- COMPORTEMENT MOBILE / TABLETTE : Toucher/Clic ---
+  document.addEventListener('click', function(e) {
+    const icon = e.target.closest('.info-icon');
+    
+    if (icon) {
+      e.stopPropagation(); // Évite les conflits de clic
+      // Si on clique sur l'icône déjà active, on la ferme, sinon on l'ouvre
+      if (activeIcon === icon) {
+        hideTooltip();
+      } else {
+        showTooltip(icon);
+      }
+    } else {
+      // Clic n'importe où ailleurs sur l'écran ferme la popup
+      hideTooltip();
+    }
+  });
+}
 </script>
 
 <!-- 1. ON CHARGE LA BIBLIOTHÈQUE SUPABASE TOUT EN HAUT DU SCRIPT -->
@@ -253,7 +303,6 @@ function highlight(text, query){
 // Génère la petite icône 'i' avec l'infobulle d'étymologie
 function createEtymHtml(etymText) {
   if (!etymText) return '';
-  // On stocke le texte dans l'icône directement sans créer de sous-balise encombrante
   return `<span class="etym-container">
             <span class="info-icon" data-title="Étymologie" data-text="${etymText.replace(/"/g, '&quot;')}">i</span>
           </span>`;
@@ -266,7 +315,6 @@ function displayWordFromSupabase(row, query) {
 
   const category = row.categorie || "Mot";
   
-  // Sécurité pour les traductions
   let traductions = [];
   if (row.mots_francais) {
     traductions = Array.isArray(row.mots_francais) ? row.mots_francais : [row.mots_francais];
@@ -274,12 +322,10 @@ function displayWordFromSupabase(row, query) {
 
   let html = "";
 
-  // --- LE DESIGN S'ADAPTE AU SENS DE LA RECHERCHE ---
   if (row.directionRecherche === "FR_TO_RATHER") {
     const principalFr = traductions[0] ? traductions[0].traduction_fr : "Mot français";
     const contexteFr = traductions[0]?.contexte_fr ? `(${traductions[0].contexte_fr}) ` : '';
     
-    // Conteneur en ligne : catégorie + mot + étymologie + les deux points collés !
     html += `<div class="word-line">`;
     html += `<span class="category">${category}</span>`;
     html += `<span>${contexteFr}${highlight(principalFr, query)} :</span>`;
@@ -294,7 +340,6 @@ function displayWordFromSupabase(row, query) {
             </div>`;
 
   } else {
-    // Mode Rather vers Français
     html += `<div class="word-line">`;
     html += `<span class="category">${category}</span>`;
     html += `<span>${highlight(row.mot, query)} :</span>`;
@@ -326,7 +371,6 @@ searchInput.addEventListener("input", async () => {
   resultsDiv.innerHTML = "";
   if(!query) return;
 
-  // Requêtes parallèles sur Supabase
   const requeteRather = supabaseClient
     .from('mots_rather')
     .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
@@ -361,7 +405,6 @@ searchInput.addEventListener("input", async () => {
     });
   }
 
-  // Fusion et dédoublonnement
   const listePlat = [...donneesRather, ...donneesFrancais];
   const resultatsUniques = [];
   const motsVus = new Set();
@@ -373,15 +416,12 @@ searchInput.addEventListener("input", async () => {
     }
   });
 
-  // CORRIGÉ : Plus d'espace ici !
   let meilleurScoreRatherGlobal = 0;
   let meilleurScoreFrGlobal = 0;
 
-  // Premier passage : On calcule les scores individuels
   const resultatsScorés = resultatsUniques.map(item => {
     const ratherMot = item.mot ? item.mot.toLowerCase() : "";
     
-    // 1. Score Rather
     let scoreRather = 0;
     if (ratherMot === query) scoreRather = 100;
     else if (ratherMot.startsWith(query)) scoreRather = 50;
@@ -393,7 +433,6 @@ searchInput.addEventListener("input", async () => {
     }
     if (scoreRather > meilleurScoreRatherGlobal) meilleurScoreRatherGlobal = scoreRather;
 
-    // 2. Score Français
     let scoreFr = 0;
     let aUnMatchFr = false; 
     if (item.mots_francais && Array.isArray(item.mots_francais)) {
@@ -419,10 +458,8 @@ searchInput.addEventListener("input", async () => {
     return { ...item, scoreRather, scoreFr, aUnMatchFr };
   });
 
-  // Détermination du sens exclusif de la recherche
   const modeExclusif = meilleurScoreRatherGlobal >= meilleurScoreFrGlobal ? "RATHER_ONLY" : "FR_ONLY";
 
-  // Filtrage strict
   const resultatsFiltrés = resultatsScorés.filter(item => {
     if (modeExclusif === "RATHER_ONLY") {
       return item.scoreRather > 0;
@@ -437,7 +474,6 @@ searchInput.addEventListener("input", async () => {
     };
   });
 
-  // Tri final
   resultatsFiltrés.sort((a, b) => {
     if (b.finalScore === a.finalScore) {
       return a.mot.localeCompare(b.mot);
@@ -445,7 +481,6 @@ searchInput.addEventListener("input", async () => {
     return b.finalScore - a.finalScore;
   });
 
-  // Affichage final du top 5 filtré
   if (resultatsFiltrés.length > 0) {
     resultatsFiltrés.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
   }
