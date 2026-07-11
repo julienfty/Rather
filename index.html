@@ -88,6 +88,43 @@ if (!isTouchDevice) {
     } else { hideTooltip(); }
   });
 }
+
+  const translatorBtn = document.querySelector('.btn-nav');
+const searchInput = document.getElementById('search');
+const seeAllTrigger = document.getElementById('see-all-trigger');
+const closeBtn = document.getElementById('close-expanded');
+
+// Fonction pour masquer le bouton
+function hideBtn() {
+    translatorBtn.classList.add('hidden');
+}
+
+// Fonction pour réafficher le bouton
+function showBtn() {
+    translatorBtn.classList.remove('hidden');
+}
+
+// 1. Quand on commence à taper dans la recherche
+searchInput.addEventListener('focus', hideBtn);
+
+// 2. Quand on ferme la recherche
+closeBtn.addEventListener('click', showBtn);
+
+// 3. Quand on clique sur "Tout voir"
+seeAllTrigger.addEventListener('click', hideBtn);
+
+// 4. Petit bonus : si on clique sur le bouton "Fermer" du menu
+// assure-toi que ton bouton de nav réapparaît
+closeBtn.addEventListener('click', () => {
+    showBtn();
+});
+  
+  searchInput.addEventListener('blur', () => {
+    // On réaffiche si la barre est vide après un court délai
+    setTimeout(() => {
+        if (searchInput.value === "") showBtn();
+    }, 200);
+});
 </script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
