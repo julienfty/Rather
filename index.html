@@ -172,16 +172,26 @@ body {
 </div>
 
 <script src="Rather.js"></script>
+<!-- 1. ON CHARGE LA BIBLIOTHÈQUE SUPABASE TOUT EN HAUT DU SCRIPT -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
+// 2. CONFIGURATION DE TA CONNEXION (Mets tes vraies clés ici)
+const SUPABASE_URL = "TON_URL_SUPABASE";
+const SUPABASE_KEY = "TA_CLE_PUBLIQUE_ANON";
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 const searchInput = document.getElementById("search");
 const resultsDiv = document.getElementById("results");
 
+// Garde ta fonction de surlignage intacte !
 function highlight(text, query){
   if(!text || !query) return text || "";
   const regex = new RegExp(`(${query})`, 'gi');
   return text.replace(regex, `<span class="highlight">$1</span>`);
 }
 
+// Génère la petite icône 'i' avec l'infobulle d'étymologie
 function createEtymHtml(etymText) {
   if (!etymText) return "";
   return `<span class="etym-container">
@@ -193,87 +203,84 @@ function createEtymHtml(etymText) {
           </span>`;
 }
 
-function displayWord(category, word, value, query){
+// 3. LA NOUVELLE FONCTION D'AFFICHAGE ADAPTÉE À SUPABASE
+function displayWordFromSupabase(row, query) {
   const div = document.createElement("div");
   div.classList.add("result");
 
-  if(typeof value === "string") {
-    div.innerHTML = `<span class="category">${category}</span><br>
-                     <span class="word">${highlight(word, query)}</span> : 
-                     <span class="translation">${highlight(value, query)}</span>`;
-  }
-  else if (value && value.hasOwnProperty('trad')) {
-    div.innerHTML = `<span class="category">${category}</span><br>
-                     <span class="word">${highlight(word, query)}</span> : 
-                     <span class="translation">${highlight(value.trad, query)}</span>${createEtymHtml(value.etym)}`;
-  }
-  else {
-    let html = `<span class="category">${category}</span><br><span class="word">${highlight(word, query)}</span> :`;
-    for(const subword in value){
-      const subValue = value[subword];
-      if (typeof subValue === "object" && subValue !== null && subValue.hasOwnProperty('trad')) {
-        html += `<div class="subword">${highlight(subword, query)} : ${highlight(subValue.trad, query)}${createEtymHtml(subValue.etym)}</div>`;
-      } else {
-        html += `<div class="subword">${highlight(subword, query)} : ${highlight(subValue, query)}</div>`;
-      }
-    }
-    div.innerHTML = html;
+  // On récupère la catégorie du mot Rather, ou une valeur par défaut s'il n'y en a pas
+  const category = row.categorie || "Mot";
+  
+  // On commence à construire le HTML avec la catégorie et le mot Rather
+  let html = `<span class="category">${category}</span><br>
+              <span class="word">${highlight(row.mot, query)}</span> :`;
+
+  // ÉTAPE A : Est-ce qu'il y a une étymologie GLOBALE sur le mot ?
+  if (row.etymologie) {
+    html += ` ${createEtymHtml(row.etymologie)}`;
   }
 
+  // ÉTAPE B : On affiche toutes ses significations françaises liées
+  if (row.mots_francais && row.mots_francais.length > 0) {
+  row.mots_francais.forEach(sig => {
+      // S'il y a un contexte (ex: "Taille"), on l'affiche proprement
+      const contexte = sig.contexte_fr ? `<span class="category">(${sig.contexte_fr})</span> ` : '';
+      
+      // On affiche la traduction + l'étymologie SPÉCIFIQUE à ce sens s'il y en a une
+      html += `<div class="subword">
+                ${contexte}${highlight(sig.traduction_fr, query)}
+                ${createEtymHtml(sig.etymologie)}
+              </div>`;
+    });
+  } else {
+    html += ` <span class="translation">Aucune traduction enregistrée</span>`;
+  }
+
+  div.innerHTML = html;
   resultsDiv.appendChild(div);
 }
 
-searchInput.addEventListener("input", () => {
+// 4. L'ÉCOUTEUR DE RECHERCHE EN TEMPS RÉEL SUR SUPABASE
+searchInput.addEventListener("input", async () => {
   let query = searchInput.value.toLowerCase().trim();
   resultsDiv.innerHTML = "";
   if(!query) return;
 
-  const shortResults = [];
-  const longResults = [];
-  const strictSearch = searchInput.value.includes(" ");
+  // On prépare la requête magique qui fouille dans les deux tables en même temps !
+  // On demande le mot, sa catégorie, son étymologie globale, et TOUTES ses significations
+  let recherche = supabase
+    .from('mots_rather')
+    .select(`
+      mot,
+      categorie,
+      etymologie,
+      mots_francais (
+        traduction_fr,
+        contexte_fr,
+        etymologie
+      )
+    `);
 
-  for(const category in dico){
-    for(const word in dico[category]){
-      const value = dico[category][word];
-      let match = false;
-
-      let translationText = "";
-      let isSubcategory = true;
-
-      if (typeof value === "string") {
-        translationText = value;
-        isSubcategory = false;
-      } else if (value && value.hasOwnProperty('trad')) {
-        translationText = value.trad;
-        isSubcategory = false;
-      }
-
-      if(!isSubcategory) {
-        match = strictSearch ? (word.toLowerCase()===query || translationText.toLowerCase()===query)
-                             : (word.toLowerCase().includes(query) || translationText.toLowerCase().includes(query));
-      } else {
-        for(const subword in value){
-          const subValue = value[subword];
-          let subTranslation = (typeof subValue === "object" && subValue !== null && subValue.hasOwnProperty('trad')) ? subValue.trad : subValue;
-          
-          if(strictSearch){
-            if(subword.toLowerCase()===query || subTranslation.toLowerCase()===query){ match=true; break; }
-          } else {
-            if(subword.toLowerCase().includes(query) || subTranslation.toLowerCase().includes(query)){ match=true; break; }
-          }
-        }
-      }
-
-      if(match){
-        const resultObj = {category, word, value};
-        if(word.length<=2) shortResults.push(resultObj);
-        else longResults.push(resultObj);
-      }
-    }
+  // Gestion de la recherche stricte (si l'utilisateur met un espace)
+  if (searchInput.value.includes(" ")) {
+    recherche = recherche.or(`mot.ilike.${query},significations.traduction_fr.ilike.${query}`);
+  } else {
+    // Recherche floue (contient le mot)
+    recherche = recherche.or(`mot.ilike.*${query}*,significations.traduction_fr.ilike.*${query}*`);
   }
 
-  const combined = shortResults.concat(longResults).slice(0,5);
-  combined.forEach(r => displayWord(r.category,r.word,r.value,query));
+  // On limite à 5 résultats maximum comme dans ton ancien code
+  const { data, error } = await recherche.limit(5);
+
+  if (error) {
+    console.error("Erreur Supabase :", error);
+    return;
+  }
+
+  // On affiche les résultats trouvés à l'écran
+  if (data && data.length > 0) {
+    data.forEach(row => displayWordFromSupabase(row, query));
+  }
 });
 </script>
 
