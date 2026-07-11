@@ -239,25 +239,23 @@ function displayWordFromSupabase(row, query) {
   resultsDiv.appendChild(div);
 }
 
-// 4. L'ÉCOUTEUR DE RECHERCHE EN TEMPS RÉEL (Le vrai !)
+// 4. L'ÉCOUTEUR DE RECHERCHE EN TEMPS RÉEL PRÉCIS ET TRIÉ
 searchInput.addEventListener("input", async () => {
   let query = searchInput.value.toLowerCase().trim();
   resultsDiv.innerHTML = "";
   if(!query) return;
 
-  // REQUÊTE 1 : Recherche dans les mots Rather
+  // REQUÊTE 1 : Recherche dans les mots Rather (Pas de .limit pour pouvoir tout trier nous-mêmes !)
   const requeteRather = supabaseClient
     .from('mots_rather')
     .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
-    .ilike('mot', `%${query}%`)
-    .limit(5);
+    .ilike('mot', `%${query}%`);
 
   // REQUÊTE 2 : Recherche dans les traductions françaises
   const requeteFrancais = supabaseClient
     .from('mots_francais')
     .select('traduction_fr, contexte_fr, etymologie, mots_rather(mot, categorie, etymologie)')
-    .ilike('traduction_fr', `%${query}%`)
-    .limit(5);
+    .ilike('traduction_fr', `%${query}%`);
 
   const [resRather, resFrancais] = await Promise.all([requeteRather, requeteFrancais]);
 
@@ -286,7 +284,6 @@ searchInput.addEventListener("input", async () => {
 
   // Fusion des résultats
   const listePlat = [...donneesRather, ...donneesFrancais];
-  console.log("Mots trouvés par Supabase :", listePlat);
 
   // Nettoyage des doublons
   const resultatsUniques = [];
@@ -299,9 +296,55 @@ searchInput.addEventListener("input", async () => {
     }
   });
 
-  // Affichage final sur la page
-  if (resultatsUniques.length > 0) {
-    resultatsUniques.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
+  // --- ALGORITHME DE TRI INTELLIGENT ---
+  const resultatsScorés = resultatsUniques.map(item => {
+    const ratherMot = item.mot ? item.mot.toLowerCase() : "";
+    let maxScore = 0;
+
+    // 1. Calcul du score sur le mot Rather
+    if (ratherMot === query) {
+      maxScore = 100; // Correspondance exacte Rather
+    } else if (ratherMot.startsWith(query)) {
+      maxScore = 50;  // Commence par Rather
+    } else if (ratherMot.includes(query)) {
+      maxScore = 10;  // Contient Rather
+    }
+
+    // Le mot est-il court ? (Bonus de taille)
+    if (ratherMot) {
+      const diffTaille = ratherMot.length - query.length;
+      maxScore -= diffTaille * 0.5;
+    }
+
+    // 2. Calcul du score sur la traduction française (si l'utilisateur cherche via le français)
+    if (item.mots_francais && Array.isArray(item.mots_francais)) {
+      item.mots_francais.forEach(f => {
+        if (f.traduction_fr) {
+          const trad = f.traduction_fr.toLowerCase();
+          let scoreFr = 0;
+          if (trad === query) scoreFr = 95; // Presque aussi fort qu'une correspondance exacte Rather
+          else if (trad.startsWith(query)) scoreFr = 45;
+          else if (trad.includes(query)) scoreFr = 8;
+
+          // Bonus taille pour le français
+          const diffTailleFr = trad.length - query.length;
+          scoreFr -= diffTailleFr * 0.5;
+
+          if (scoreFr > maxScore) maxScore = scoreFr;
+        }
+      });
+    }
+
+    return { ...item, finalScore: maxScore };
+  });
+
+  // Tri du score le plus haut au plus bas
+  resultatsScorés.sort((a, b) => b.finalScore - a.finalScore);
+  // -------------------------------------
+
+  // Affichage final des 5 meilleurs sur la page
+  if (resultatsScorés.length > 0) {
+    resultatsScorés.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
   }
 });
 </script>
