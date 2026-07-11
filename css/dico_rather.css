@@ -328,18 +328,31 @@ body {
   letter-spacing: 0.5px;
 }
 
+/* Le bouton fixe */
 .btn-nav {
-    display: inline-block;
-    padding: 8px 16px;
-    background-color: #007bff; /* Couleur bleue par exemple */
-    color: white;
+    position: fixed;
+    bottom: 20px;          /* Distance par rapport au bas */
+    left: 50%;             /* Démarre au milieu de l'écran */
+    transform: translateX(-50%); /* Décale vers la gauche de la moitié de sa propre largeur */
+    
+    z-index: 9999;         /* Pour être sûr qu'il soit au-dessus de tout */
+    
+    background-color: #fff;
+    color: rgba(43,1,230,1);
+    padding: 10px 20px;
+    border-radius: 25px;   /* Plus arrondi pour un look bouton */
     text-decoration: none;
-    border-radius: 5px;       /* Pour les bords arrondis */
-    font-size: 14px;          /* Plus petit que le reste */
-    font-family: sans-serif;
-    transition: background-color 0.3s;
+    font-size: 14px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2); /* Un peu d'ombre pour le faire ressortir */
+    
+    /* Animation de transition */
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    opacity: 1;
 }
 
-.btn-nav:hover {
-    background-color: #0056b3; /* Couleur un peu plus foncée au survol */
+/* La classe pour masquer le bouton */
+.hidden {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px); /* On le fait descendre un peu en disparaissant */
+    pointer-events: none;
 }
