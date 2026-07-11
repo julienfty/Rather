@@ -246,21 +246,21 @@ searchInput.addEventListener("input", async () => {
   resultsDiv.innerHTML = "";
   if(!query) return;
 
-  // On prépare le texte de recherche avec les % pour le mode flou
-  const rechercheTexte = searchInput.value.includes(" ") ? query : `%${query}%`;
+  // Supabase gère déjà le flou avec 'ilike', on lui envoie le texte pur
+  const rechercheTexte = query;
   const operateur = searchInput.value.includes(" ") ? 'eq' : 'ilike';
 
-  // REQUÊTE 1 : On cherche si ça correspond à un mot Rather
+  // REQUÊTE 1 : On cherche si ça correspond à un mot Rather (avec ta nouvelle colonne categorie !)
   const requeteRather = supabaseClient
     .from('mots_rather')
-    .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
+    .select('mot, categorie, etymologie, mots_francais!mots_rather_id(traduction_fr, contexte_fr, etymologie, categorie)')
     [operateur]('mot', rechercheTexte)
     .limit(5);
 
   // REQUÊTE 2 : On cherche si ça correspond à une traduction française
   const requeteFrancais = supabaseClient
     .from('mots_rather')
-    .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
+    .select('mot, categorie, etymologie, mots_francais!mots_rather_id(traduction_fr, contexte_fr, etymologie, categorie)')
     [operateur]('mots_francais.traduction_fr', rechercheTexte)
     .limit(5);
 
@@ -273,9 +273,11 @@ searchInput.addEventListener("input", async () => {
   // On fusionne les résultats des deux recherches
   const listePlat = [...(resRather.data || []), ...(resFrancais.data || [])];
 
+  // Ce log te permettra de voir tes beaux mots et leurs catégories dans la console !
+  console.log("Mots trouvés par Supabase :", listePlat);
+
   // On élimine les doublons au cas où un mot correspondrait aux deux requêtes
   const resultatsUniques = [];
-  console.log("Mots trouvés par Supabase :", listePlat);
   const motsVus = new Set();
 
   listePlat.forEach(item => {
