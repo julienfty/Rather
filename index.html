@@ -50,7 +50,6 @@ body {
   align-items:center;
 }
 
-/* Modifié : L'ombre principale revient uniquement sur la barre */
 .rectangle {
   width:100%;
   height: 56px;
@@ -174,7 +173,6 @@ body {
   display: block;
 }
 
-/* MODIFIÉ : L'encoche passe devant l'ombre de la barre et projette son ombre uniquement vers le bas */
 .see-all-notch {
   background: white;
   color: rgba(43,1,230,1);
@@ -464,7 +462,7 @@ function displayWordFromSupabase(row, query, targetContainer) {
 
   let html = "";
 
-  if (row.directionRecherche === "FR_TO_RATHER") {
+  if (row.directionRecherche === "FR_TO_RATHER" {
     const principalFr = traductions[0] ? traductions[0].traduction_fr : "Mot français";
     const contexteFr = traductions[0]?.contexte_fr ? `(${traductions[0].contexte_fr}) ` : '';
     
@@ -618,7 +616,6 @@ function buildMainFilterButtons(data) {
   });
 }
 
-// --- LOGIQUE DU MODE "TOUT VOIR" ---
 seeAllTrigger.addEventListener("click", async () => {
   searchContainer.classList.add("expanded");
   seeAllTrigger.style.opacity = "0";
@@ -679,7 +676,6 @@ closeExpanded.addEventListener("click", () => {
   window.allWordsCache = null;
 });
 
-// --- RECHERCHE ET FILTRAGE EN DIRECT AVEC CORRESPONDANCE EXACTE ---
 searchInput.addEventListener("input", async () => {
   let query = searchInput.value.toLowerCase().trim();
   
@@ -792,17 +788,22 @@ searchInput.addEventListener("input", async () => {
       cleMotEtudie = item.mot.toLowerCase().trim();
     }
 
-    // MODIFIÉ : Filtrage strict pour éviter les faux-positifs ("je" dans "adjectif" ou "nous" vs "nous inclusif")
     const estCorrespondanceExacte = (cleMotEtudie === query);
     
+    // MODIFIÉ : Verrouillage strict des expressions composées. Si la requête contient un espace, l'égalité doit être parfaite.
+    if (query.includes(" ")) {
+      if (estCorrespondanceExacte) {
+        displayWordFromSupabase(item, query, resultsDiv);
+      }
+      return; 
+    }
+
+    // Gestion pour les recherches d'un seul mot sans espace ("nous", "je", etc.)
     if (estCorrespondanceExacte) {
-      // Pour une égalité parfaite ("nous" ou "nous inclusif"), on affiche TOUTES les fiches sans limite
       displayWordFromSupabase(item, query, resultsDiv);
-    } else if (!query.includes(" ") && cleMotEtudie.includes(" ")) {
-      // Si la requête n'a pas d'espace ("nous"), on rejette les composés ("nous inclusif")
-      return;
+    } else if (cleMotEtudie.includes(" ")) {
+      return; // Bloque "nous inclusif" quand on cherche juste "nous"
     } else if (motsAutorises.has(cleMotEtudie) || motsAutorises.size < limiteMaxMotsDistincts) {
-      // Sinon, on applique l'affichage classique des 5 premiers mots distincts pertinents
       motsAutorises.add(cleMotEtudie);
       displayWordFromSupabase(item, query, resultsDiv);
     }
