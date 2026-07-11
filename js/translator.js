@@ -45,7 +45,7 @@ document.getElementById('translate-btn').addEventListener('click', async () => {
     resultArea.innerText = "Recherche...";
 
     // A. Découpage
-    const tags = await tokenize(text);
+    const tags = await tokens = await tokenize(text);
     console.log("Tags identifiés :", tags);
 
     if (!tags) {
@@ -53,31 +53,29 @@ document.getElementById('translate-btn').addEventListener('click', async () => {
         return;
     }
     
-  // B. Recherche de la règle dans Supabase
-const tagsString = tags.join(','); 
-console.log("Chaîne cherchée dans la base : '" + tagsString + "'");
+    // B. Recherche de la règle dans Supabase (Utilisation du type Array)
+    console.log("Recherche dans la base avec le tableau :", tags);
 
-const { data: regles, error } = await sb
-    .from('regle_composition')
-    .select('*')
-    .eq('ordre_tags', tagsString); 
+    const { data: regles, error } = await sb
+        .from('regle_composition')
+        .select('*')
+        .contains('ordre_tags', tags); // .contains est la méthode native pour les Array
 
-if (error) {
-    console.error("Erreur Supabase:", error);
-    resultArea.innerText = "Erreur de base de données.";
-} else if (!regles || regles.length === 0) {
-    console.log("Aucune correspondance trouvée pour : '" + tagsString + "'");
-    // Affichons une alerte pour toi
-    resultArea.innerText = "Règle non trouvée pour : " + tagsString + ". Vérifie les espaces dans la base !";
-} else {
-    // Si on trouve quelque chose, on prend le premier
-    const regle = regles[0];
-    console.log("Règle trouvée :", regle);
-    
-    if (typeof ActionsComposition[regle.action] === 'function') {
-        resultArea.innerText = ActionsComposition[regle.action](tags);
+    if (error) {
+        console.error("Erreur Supabase:", error);
+        resultArea.innerText = "Erreur : " + error.message;
+    } else if (!regles || regles.length === 0) {
+        console.log("Aucune règle trouvée pour :", tags);
+        resultArea.innerText = "Règle non trouvée pour : " + tags.join(' + ');
     } else {
-        resultArea.innerText = "Action '" + regle.action + "' non définie.";
+        const regle = regles[0];
+        console.log("Règle trouvée :", regle);
+        
+        // C. Exécution de l'action
+        if (typeof ActionsComposition[regle.action] === 'function') {
+            resultArea.innerText = ActionsComposition[regle.action](tags);
+        } else {
+            resultArea.innerText = "Erreur : Action '" + regle.action + "' non définie.";
+        }
     }
-}
 });
