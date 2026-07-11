@@ -84,13 +84,14 @@ body {
   overflow-y:auto; 
 }
 
+/* MODIFIÉ : C'est ici qu'on ancre la popup maintenant pour qu'elle ne soit plus coupée */
 .result {
   background:white;
   padding:10px 14px; 
   margin-bottom:6px;  
   border-radius:12px; 
   box-shadow:0px 3px 8px rgba(0,0,0,0.4);
-  position: relative;
+  position: relative; /* La popup va se caler par rapport à ce bloc entier */
   display: flex;
   flex-direction: column;
 }
@@ -130,9 +131,9 @@ body {
 
 .highlight { background: yellow; }
 
+/* MODIFIÉ : On nettoie le container de l'icône */
 .etym-container {
   display: inline-flex;
-  position: relative;
   margin-left: 6px;
   cursor: pointer;
   align-items: center;
@@ -153,35 +154,35 @@ body {
   font-family: serif;
 }
 
-/* LA POPUP PARFAITEMENT SÉCURISÉE CONTRE LE ROGNAGE */
+/* LA POPUP COMPLÈTEMENT RE-PENSÉE : Impossible à rogner + Retour du flou iOS */
 .tooltip {
   visibility: hidden;
-  width: 260px;
+  /* Elle prend la largeur du bloc blanc moins le padding */
+  width: calc(100% - 28px); 
   
-  /* Fond blanc un peu plus opaque (0.85) pour éliminer l'effet brouillard */
+  /* Fond givré ultra propre */
   background-color: rgba(255, 255, 255, 0.85) !important; 
   color: #111;
   text-align: left;
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 10px 12px;
   
-  /* On la décale vers le bas pour qu'elle sorte du piège du scroll de la boîte */
+  /* Sécurité absolue : elle se place au pixel près au fond de la boîte blanche du mot */
   position: absolute;
-  z-index: 99999;
-  top: 100%;       
-  left: 10px;      
-  transform: translateY(5px);
+  z-index: 999;
+  bottom: 8px;
+  left: 14px;
   
   opacity: 0;
-  transition: opacity 0.2s, transform 0.2s;
+  transition: opacity 0.2s ease-in-out;
   font-size: 13px;
-  line-height: 1.35;
-  box-shadow: 0px 8px 24px rgba(0,0,0,0.2);
+  line-height: 1.4;
+  box-shadow: 0px 4px 15px rgba(0,0,0,0.15);
   font-weight: 500;
   
-  /* Effet frosted glass adouci */
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
+  /* Le flou revient à 100% car on n'essaie plus de déborder du scroll */
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
 }
 
 .tooltip-title {
@@ -194,10 +195,11 @@ body {
   letter-spacing: 0.5px;
 }
 
+/* Quand on survole l'icône, la popup apparaît magnifiquement dans sa boîte */
+.etym-container:hover ~ .tooltip,
 .etym-container:hover .tooltip {
   visibility: visible !important;
   opacity: 1 !important;
-  transform: translateY(5px); 
 }
 </style>
 </head>
