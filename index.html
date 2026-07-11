@@ -677,8 +677,7 @@ closeExpanded.addEventListener("click", () => {
 });
 
 searchInput.addEventListener("input", async () => {
-  // Ici on garde les espaces pendant la frappe pour compter les paliers
-  let query = searchInput.value.toLowerCase();
+  let rawQuery = searchInput.value.toLowerCase();
   
   if (searchContainer.classList.contains("expanded")) {
     applyFiltersInExpanded();
@@ -686,17 +685,26 @@ searchInput.addEventListener("input", async () => {
   }
 
   resultsDiv.innerHTML = "";
-  if(!query.trim()) return;
+  if(!rawQuery.trim()) return;
+
+  // AJUSTEMENT DE LA RECHERCHE EN FONCTION DES ESPACES FINAUX
+  // Si la saisie se termine par un espace sans texte après (ex: "mot "), 
+  // on cherche uniquement le mot principal dans Supabase pour éviter le bruit.
+  let effectiveQuery = rawQuery;
+  const parts = rawQuery.split(" ").filter(p => p !== "");
+  if (rawQuery.endsWith(" ") && parts.length > 0) {
+    effectiveQuery = parts.join(" ");
+  }
 
   const requeteRather = supabaseClient
     .from('mots_rather')
     .select('mot, categorie, sous_categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
-    .ilike('mot', `%${query.trim()}%`);
+    .ilike('mot', `%${effectiveQuery.trim()}%`);
 
   const requeteFrancais = supabaseClient
     .from('mots_francais')
     .select('traduction_fr, contexte_fr, etymologie, mots_rather(mot, categorie, sous_categorie, etymologie)')
-    .ilike('traduction_fr', `%${query.trim()}%`);
+    .ilike('traduction_fr', `%${effectiveQuery.trim()}%`);
 
   const [resRather, resFrancais] = await Promise.all([requeteRather, requeteFrancais]);
 
@@ -728,12 +736,12 @@ searchInput.addEventListener("input", async () => {
     const ratherMot = item.mot ? item.mot.toLowerCase().trim() : "";
      
     let scoreRather = 0;
-    if (ratherMot === query.trim()) scoreRather = 100;
-    else if (ratherMot.startsWith(query.trim())) scoreRather = 50;
-    else if (ratherMot.includes(query.trim())) scoreRather = 10;
+    if (ratherMot === effectiveQuery.trim()) scoreRather = 100;
+    else if (ratherMot.startsWith(effectiveQuery.trim())) scoreRather = 50;
+    else if (ratherMot.includes(effectiveQuery.trim())) scoreRather = 10;
 
     if (ratherMot) {
-      const diffTaille = ratherMot.length - query.trim().length;
+      const diffTaille = ratherMot.length - effectiveQuery.trim().length;
       scoreRather -= diffTaille * 0.5;
     }
     if (scoreRather > meilleurScoreRatherGlobal) meilleurScoreRatherGlobal = scoreRather;
@@ -746,13 +754,13 @@ searchInput.addEventListener("input", async () => {
         if (f.traduction_fr) {
           const trad = f.traduction_fr.toLowerCase().trim();
           let currentFrScore = 0;
-          if (trad === query.trim()) currentFrScore = 100;
-          else if (trad.startsWith(query.trim())) currentFrScore = 50;
-          else if (trad.includes(query.trim())) currentFrScore = 10;
+          if (trad === effectiveQuery.trim()) currentFrScore = 100;
+          else if (trad.startsWith(effectiveQuery.trim())) currentFrScore = 50;
+          else if (trad.includes(effectiveQuery.trim())) currentFrScore = 10;
 
           if (currentFrScore > 0) aUnMatchFr = true;
 
-          const diffTailleFr = trad.length - query.trim().length;
+          const diffTailleFr = trad.length - effectiveQuery.trim().length;
           currentFrScore -= diffTailleFr * 0.5;
 
           if (currentFrScore > scoreFr) scoreFr = currentFrScore;
@@ -781,8 +789,10 @@ searchInput.addEventListener("input", async () => {
   const motsAutorises = new Set();
   const limiteMaxMotsDistincts = 5;
 
-  // 1. On compte les espaces saisis par l'utilisateur (le palier actuel)
-  const nombreEspacesQuery = (query.match(/ /g) || []).length;
+  // GESTION DÉCISIVE DU PALIER D'ESPACES
+  // Si la chaîne brute se termine par un espace pur, on fait comme si cet espace n'existait pas encore
+  // pour le comptage de notre palier, bloquant l'affichage prématuré des mots composés.
+  const nombreEspacesQuery = (effectiveQuery.match(/ /g) || []).length;
 
   resultatsFiltrés.forEach(item => {
     let cleMotEtudie = "";
@@ -792,21 +802,20 @@ searchInput.addEventListener("input", async () => {
       cleMotEtudie = item.mot.toLowerCase().trim();
     }
 
-    // 2. On compte les espaces présents dans l'expression de la base de données
     const nombreEspacesMot = (cleMotEtudie.match(/ /g) || []).length;
 
-    // 3. RÈGLE DES PALIERS : L'expression doit avoir STRICTEMENT le même nombre d'espaces
+    // Règle stricte des paliers basée sur la requête effective (sans l'espace traînant)
     if (nombreEspacesMot !== nombreEspacesQuery) {
-      return; // On zappe les expressions trop courtes ou trop longues
+      return; 
     }
 
-    const estCorrespondanceExacte = (cleMotEtudie === query.trim());
+    const estCorrespondanceExacte = (cleMotEtudie === effectiveQuery.trim());
     
     if (estCorrespondanceExacte) {
-      displayWordFromSupabase(item, query.trim(), resultsDiv);
+      displayWordFromSupabase(item, effectiveQuery.trim(), resultsDiv);
     } else if (motsAutorises.has(cleMotEtudie) || motsAutorises.size < limiteMaxMotsDistincts) {
       motsAutorises.add(cleMotEtudie);
-      displayWordFromSupabase(item, query.trim(), resultsDiv);
+      displayWordFromSupabase(item, effectiveQuery.trim(), resultsDiv);
     }
   });
 });
