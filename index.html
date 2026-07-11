@@ -297,12 +297,13 @@ function displayWordFromSupabase(row, query) {
 }
 
 // 4. L'ÉCOUTEUR DE RECHERCHE EN TEMPS RÉEL (LE CERVEAU DE L'ALGO)
+// 4. L'ÉCOUTEUR DE RECHERCHE AVEC FILTRE D'AFFICHAGE EXCLUSIF
 searchInput.addEventListener("input", async () => {
   let query = searchInput.value.toLowerCase().trim();
   resultsDiv.innerHTML = "";
   if(!query) return;
 
-  // Requêtes parallèles sur Supabase
+  // Requêtes parallèles sur Supabase (On récupère tout pour trier/filtrer)
   const requeteRather = supabaseClient
     .from('mots_rather')
     .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
@@ -349,11 +350,15 @@ searchInput.addEventListener("input", async () => {
     }
   });
 
-  // --- ALGORITHME DE DOUBLE SCORING & DÉTECTION DU SENS ---
+  // Variables pour détecter la tendance globale de la recherche
+  let meilleurScoreRather Global = 0;
+  let meilleurScoreFrGlobal = 0;
+
+  // Premier passage : On calcule les scores individuels
   const resultatsScorés = resultatsUniques.map(item => {
     const ratherMot = item.mot ? item.mot.toLowerCase() : "";
     
-    // 1. Calcul du score côté Rather
+    // 1. Score Rather
     let scoreRather = 0;
     if (ratherMot === query) scoreRather = 100;
     else if (ratherMot.startsWith(query)) scoreRather = 50;
@@ -363,9 +368,11 @@ searchInput.addEventListener("input", async () => {
       const diffTaille = ratherMot.length - query.length;
       scoreRather -= diffTaille * 0.5;
     }
+    if (scoreRather > meilleurScoreRatherGlobal) meilleurScoreRatherGlobal = scoreRather;
 
-    // 2. Calcul du score côté Français
+    // 2. Score Français
     let scoreFr = 0;
+    let aUnMatchFr = false; // Flag pour savoir si la traduction contient la recherche
     if (item.mots_francais && Array.isArray(item.mots_francais)) {
       item.mots_francais.forEach(f => {
         if (f.traduction_fr) {
@@ -375,6 +382,8 @@ searchInput.addEventListener("input", async () => {
           else if (trad.startsWith(query)) currentFrScore = 50;
           else if (trad.includes(query)) currentFrScore = 10;
 
+          if (currentFrScore > 0) aUnMatchFr = true;
+
           const diffTailleFr = trad.length - query.length;
           currentFrScore -= diffTailleFr * 0.5;
 
@@ -382,33 +391,44 @@ searchInput.addEventListener("input", async () => {
         }
       });
     }
+    if (scoreFr > meilleurScoreFrGlobal) meilleurScoreFrGlobal = scoreFr;
 
-    // 3. On détermine le gagnant et la direction de l'affichage
-    let finalScore = 0;
-    let directionRecherche = "RATHER_TO_FR"; // Par défaut
+    return { ...item, scoreRather, scoreFr, aUnMatchFr };
+  });
 
-    if (scoreRather >= scoreFr) {
-      finalScore = scoreRather;
-      directionRecherche = "RATHER_TO_FR"; // L'utilisateur cherche du Rather
+  // Détermination du sens exclusif de la recherche
+  // Si le meilleur score est côté Rather, on passe en mode RATHER_ONLY, sinon FR_ONLY
+  const modeExclusif = meilleurScoreRatherGlobal >= meilleurScoreFrGlobal ? "RATHER_ONLY" : "FR_ONLY";
+
+  // Filtrage strict : on ne garde que la langue détectée
+  const resultatsFiltrés = resultatsScorés.filter(item => {
+    if (modeExclusif === "RATHER_ONLY") {
+      // On ne garde que les mots dont le mot Rather contient la recherche
+      return item.scoreRather > 0;
     } else {
-      finalScore = scoreFr;
-      directionRecherche = "FR_TO_RATHER"; // L'utilisateur cherche du Français !
+      // On ne garde que les mots dont la traduction française contient la recherche
+      return item.aUnMatchFr;
     }
-
-    return { ...item, finalScore, directionRecherche, scoreRather };
+  }).map(item => {
+    // On ré-attribue les variables attendues par ta fonction d'affichage
+    return {
+      ...item,
+      finalScore: modeExclusif === "RATHER_ONLY" ? item.scoreRather : item.scoreFr,
+      directionRecherche: modeExclusif === "RATHER_ONLY" ? "RATHER_TO_FR" : "FR_TO_RATHER"
+    };
   });
 
   // Tri final
-  resultatsScorés.sort((a, b) => {
+  resultatsFiltrés.sort((a, b) => {
     if (b.finalScore === a.finalScore) {
-      return a.mot.localeCompare(b.mot); // Tri alphabétique si égalité parfaite
+      return a.mot.localeCompare(b.mot);
     }
     return b.finalScore - a.finalScore;
   });
 
-  // Affichage final du top 5
-  if (resultatsScorés.length > 0) {
-    resultatsScorés.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
+  // Affichage final des 5 meilleurs résultats filtrés
+  if (resultatsFiltrés.length > 0) {
+    resultatsFiltrés.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
   }
 });
 </script>
