@@ -2,8 +2,18 @@ const sb = window.supabaseClient;
 const resultArea = document.getElementById('result-area');
 
 const ActionsComposition = {
-    assembler_pronom: (tags) => "Traduction pronom simple",
-    assembler_pronom_inexgen: (tags) => "Traduction pronom complexe"
+    assembler_pronom: (tags) => {
+        // Logique pour ["PRONOM", "GENRE", "FLEXION"]
+        return "Traduction pronom simple";
+    },
+    assembler_pronom_inexgen: (tags) => {
+        // Logique pour ["PRONOM", "GENRE", "FLEXION"] (variante complexe)
+        return "Traduction pronom complexe";
+    },
+    assembler_pronom_inex: (tags) => {
+        // Logique pour ["NOMBRE", "GENRE", "PRONOM", "GENRE", "FLEXION"]
+        return "Traduction pronom avec nombre et genre";
+    }
 };
 
 async function tokenize(word) {
