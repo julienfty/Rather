@@ -41,6 +41,7 @@ body {
   text-align: center;
 }
 
+/* Modifié : L'ombre globale entoure désormais tout l'ensemble (barre + encoche) */
 .search-wrapper {
   width:100%;
   max-width:932px;
@@ -48,6 +49,7 @@ body {
   display:flex;
   flex-direction:column;
   align-items:center;
+  filter: drop-shadow(0px 10px 30px rgba(0,0,0,0.4));
 }
 
 .rectangle {
@@ -55,7 +57,6 @@ body {
   height: 56px;
   background-color:white;
   border-radius: 28px;
-  box-shadow:0px 4px 30px rgba(0,0,0,0.5);
   position:relative;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
@@ -97,7 +98,6 @@ body {
   border-bottom: 1px solid #eee;
 }
 
-/* Zone des filtres avec support multi-lignes si besoin */
 .filter-container {
   display: flex;
   flex-direction: column;
@@ -117,11 +117,10 @@ body {
   display: none;
 }
 
-/* Style de la deuxième ligne pour les sous-catégories */
 #sub-filter-bar {
   border-top: 1px solid #f0f0f0;
   padding: 8px 20px;
-  display: none; /* Caché par défaut */
+  display: none;
 }
 
 .filter-btn {
@@ -140,7 +139,6 @@ body {
   color: white;
 }
 
-/* Style un poil plus léger pour les boutons de sous-catégories */
 #sub-filter-bar .filter-btn {
   background: #fff;
   border: 1px solid #ddd;
@@ -176,6 +174,7 @@ body {
   display: block;
 }
 
+/* MODIFIÉ : Encoche style iPhone authentique avec raccordement courbé */
 .see-all-notch {
   background: white;
   color: rgba(43,1,230,1);
@@ -183,20 +182,41 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 6px 20px 8px 20px;
-  border-radius: 0 0 16px 16px;
+  padding: 4px 22px 6px 22px;
+  border-radius: 0 0 12px 12px;
   cursor: pointer;
-  box-shadow: 0px 10px 25px rgba(0,0,0,0.3);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
   margin-top: -1px;
   z-index: 1;
   transition: opacity 0.2s ease;
+  position: relative;
 }
 .see-all-notch span {
-  font-size: 9px;
+  font-size: 8px;
+}
+
+/* Courbures extérieures iPhone (gauche et droite du raccordement) */
+.see-all-notch::before, .see-all-notch::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 12px;
+  height: 12px;
+  background: transparent;
+  pointer-events: none;
+}
+.see-all-notch::before {
+  left: -12px;
+  border-radius: 0 12px 0 0;
+  box-shadow: 4px -4px 0 0 white;
+}
+.see-all-notch::after {
+  right: -12px;
+  border-radius: 12px 0 0 0;
+  box-shadow: -4px -4px 0 0 white;
 }
 
 .results {
@@ -329,7 +349,6 @@ body {
       <button class="close-btn" id="close-expanded">Fermer</button>
       
       <div class="expanded-content">
-        <!-- Conteneur qui englobe les deux lignes de filtres -->
         <div class="filter-container">
           <div class="filter-bar" id="main-filter-bar"></div>
           <div class="filter-bar" id="sub-filter-bar"></div>
@@ -496,7 +515,6 @@ function displayWordFromSupabase(row, query, targetContainer) {
   targetContainer.appendChild(div);
 }
 
-// MODIFIÉ : Nouvelle logique de filtrage combinée Cascade (Catégorie + Sous-Catégorie) + Texte
 function applyFiltersInExpanded() {
   expandedResults.innerHTML = "";
   if (!window.allWordsCache) return;
@@ -504,19 +522,16 @@ function applyFiltersInExpanded() {
   let query = searchInput.value.toLowerCase().trim();
 
   const filtered = window.allWordsCache.filter(item => {
-    // 1. Validation de la catégorie principale
     if (currentMainFilter !== "Tous") {
       const catItem = (item.categorie || "Mot").toLowerCase().trim();
       if (catItem !== currentMainFilter.toLowerCase().trim()) return false;
     }
 
-    // 2. Validation de la sous-catégorie
     if (currentSubFilter !== "Tous") {
       const subCatItem = (item.sous_categorie || "").toLowerCase().trim();
       if (subCatItem !== currentSubFilter.toLowerCase().trim()) return false;
     }
     
-    // 3. Filtre textuel habituel
     const matchRather = item.mot && item.mot.toLowerCase().includes(query);
     const matchFr = item.mots_francais && (Array.isArray(item.mots_francais) ? item.mots_francais : [item.mots_francais]).some(f => f.traduction_fr && f.traduction_fr.toLowerCase().includes(query));
     
@@ -530,7 +545,6 @@ function applyFiltersInExpanded() {
   }
 }
 
-// MODIFIÉ : Génération dynamique de la ligne de sous-catégorie dépendante de la principale
 function updateSubCategoryBar() {
   subFilterBar.innerHTML = "";
   currentSubFilter = "Tous";
@@ -540,7 +554,6 @@ function updateSubCategoryBar() {
     return;
   }
 
-  // Trouver toutes les sous-catégories existantes pour la catégorie principale sélectionnée
   const subCategories = new Set();
   window.allWordsCache.forEach(item => {
     const itemCat = (item.categorie || "").trim().toLowerCase();
@@ -549,7 +562,6 @@ function updateSubCategoryBar() {
     }
   });
 
-  // Si aucune sous-catégorie n'existe pour cette catégorie, on masque la ligne
   if (subCategories.size === 0) {
     subFilterBar.style.display = "none";
     return;
@@ -600,7 +612,6 @@ function buildMainFilterButtons(data) {
       btn.classList.add("active");
       currentMainFilter = cat;
       
-      // On met à jour la cascade des sous-catégories
       updateSubCategoryBar();
       applyFiltersInExpanded();
     });
@@ -629,7 +640,6 @@ seeAllTrigger.addEventListener("click", async () => {
 
   try {
     while (hasMore) {
-      // MODIFIÉ : Ajout explicite de "sous_categorie" dans le select Supabase
       const { data, error } = await supabaseClient
         .from('mots_rather')
         .select('mot, categorie, sous_categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
@@ -683,7 +693,6 @@ searchInput.addEventListener("input", async () => {
   resultsDiv.innerHTML = "";
   if(!query) return;
 
-  // Ajout de sous_categorie également sur la recherche rapide
   const requeteRather = supabaseClient
     .from('mots_rather')
     .select('mot, categorie, sous_categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
@@ -785,8 +794,7 @@ searchInput.addEventListener("input", async () => {
       cleMotEtudie = item.mot.toLowerCase().trim();
     }
 
-    if (cleMotEtudie.includes(" ")) return; 
-
+    // MODIFIÉ : Sécurité sur l'espace retirée pour permettre les recherches multi-mots ("nous inclusif")
     if (motsAutorises.has(cleMotEtudie) || motsAutorises.size < limiteMaxMotsDistincts) {
       motsAutorises.add(cleMotEtudie);
       displayWordFromSupabase(item, query, resultsDiv);
