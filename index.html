@@ -248,7 +248,7 @@ searchInput.addEventListener("input", async () => {
   resultsDiv.innerHTML = "";
   if(!query) return;
 
-  // UNE SEULE REQUÊTE : On cherche le mot Rather, et on récupère la table liée, peu importe le nom de sa clé !
+  // UNE SEULE REQUÊTE : On cherche partout d'un coup grâce au .or()
   const { data: listePlat, error: err } = await supabaseClient
     .from('mots_rather')
     .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
@@ -262,7 +262,7 @@ searchInput.addEventListener("input", async () => {
 
   console.log("Mots trouvés par Supabase :", listePlat);
 
-  // Élimination des doublons (au cas où)
+  // Élimination des doublons
   const resultatsUniques = [];
   const motsVus = new Set();
 
@@ -279,6 +279,7 @@ searchInput.addEventListener("input", async () => {
   if (resultatsUniques.length > 0) {
     resultatsUniques.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
   }
+});
 </script>
 </body>
 </html>
