@@ -46,12 +46,11 @@ document.getElementById('translate-btn').addEventListener('click', async () => {
         return;
     }
     
-    // B. Recherche de la règle
-    console.log("Recherche dans la base...");
-    const { data: regles, error } = await sb
-        .from('regle_composition')
-        .select('*')
-        .contains('ordre_tags', tags);
+    // B. Recherche de la règle (VERSION PRÉCISE)
+const { data: regles, error } = await sb
+    .from('regle_composition')
+    .select('*')
+    .eq('ordre_tags', tags); // .eq vérifie que c'est le match exact (A = A)
 
     if (error) {
         console.error("Erreur Supabase:", error);
