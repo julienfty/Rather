@@ -44,8 +44,8 @@ document.getElementById('translate-btn').addEventListener('click', async () => {
 
     resultArea.innerText = "Recherche...";
 
-    // A. Découpage (CORRIGÉ)
-    const tags = await tokenize(text);
+    // A. Découpage - Ligne 48 corrigée ici
+    const tags = await tokenize(text); 
     console.log("Tags identifiés :", tags);
 
     if (!tags) {
@@ -59,7 +59,7 @@ document.getElementById('translate-btn').addEventListener('click', async () => {
     const { data: regles, error } = await sb
         .from('regle_composition')
         .select('*')
-        .contains('ordre_tags', tags); // .contains est la méthode native pour les Array
+        .contains('ordre_tags', tags); 
 
     if (error) {
         console.error("Erreur Supabase:", error);
