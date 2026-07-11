@@ -687,11 +687,14 @@ searchInput.addEventListener("input", async () => {
   resultsDiv.innerHTML = "";
   if(!rawQuery.trim()) return;
 
+  // Calcul du nombre de blocs de mots saisis dans la requête effective
   let effectiveQuery = rawQuery;
   const parts = rawQuery.split(" ").filter(p => p !== "");
   if (rawQuery.endsWith(" ") && parts.length > 0) {
     effectiveQuery = parts.join(" ");
   }
+  const currentQueryParts = effectiveQuery.trim().split(" ").filter(p => p !== "");
+  const expectedWordCount = currentQueryParts.length;
 
   const requeteRather = supabaseClient
     .from('mots_rather')
@@ -786,8 +789,6 @@ searchInput.addEventListener("input", async () => {
   const motsAutorises = new Set();
   const limiteMaxMotsDistincts = 5;
 
-  const nombreEspacesQuery = (effectiveQuery.match(/ /g) || []).length;
-
   resultatsFiltrés.forEach(item => {
     let cleMotEtudie = "";
     let contexteUnique = "";
@@ -799,13 +800,16 @@ searchInput.addEventListener("input", async () => {
       cleMotEtudie = item.mot.toLowerCase().trim();
     }
 
-    // CLÉ D'UNICITÉ : On combine le mot ET son contexte (ex: "nous|inclusif")
-    // Ainsi, chaque variante de "nous" possède sa propre chance d'apparaître !
     const cleUniqueCombinee = `${cleMotEtudie}|${contexteUnique}`;
 
-    const nombreEspacesMot = (cleMotEtudie.match(/ /g) || []).length;
+    // LOGIQUE DE PALIER PAR BLOC DE MOTS STRICT
+    // On compte combien de mots composent le résultat de la base de données
+    const motsDansLeResultat = cleMotEtudie.split(" ").filter(p => p !== "").length;
 
-    if (nombreEspacesMot !== nombreEspacesQuery) {
+    // Si le résultat n'a pas STRICTEMENT le même nombre de mots que ce que l'utilisateur tape : on l'élimine.
+    // Tape "nous" (1 mot) -> Élimine "nous inclusif" (2 mots).
+    // Tape "nous inc" (2 mots) -> Élimine "nous" (1 mot) ET "nous inclusif général" (3 mots).
+    if (motsDansLeResultat !== expectedWordCount) {
       return; 
     }
 
