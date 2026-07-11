@@ -264,7 +264,6 @@ function displayWordFromSupabase(row, query) {
       html += ` ${createEtymHtml(traductions[0].etymologie)}`;
     }
 
-    // CORRECTIF ICI : On vire l'opacity: 0.85 du style, et on utilise color: rgba(...) à la place !
     html += `<div class="subword" style="font-size: 0.9em; color: rgba(0,0,0,0.75); margin-top: 4px;">
               ➔ Traduction en Rather : <strong style="color: #000;">${highlight(row.mot, query)}</strong>
               ${row.etymologie ? createEtymHtml(row.etymologie) : ''}
@@ -296,14 +295,13 @@ function displayWordFromSupabase(row, query) {
   resultsDiv.appendChild(div);
 }
 
-// 4. L'ÉCOUTEUR DE RECHERCHE EN TEMPS RÉEL (LE CERVEAU DE L'ALGO)
 // 4. L'ÉCOUTEUR DE RECHERCHE AVEC FILTRE D'AFFICHAGE EXCLUSIF
 searchInput.addEventListener("input", async () => {
   let query = searchInput.value.toLowerCase().trim();
   resultsDiv.innerHTML = "";
   if(!query) return;
 
-  // Requêtes parallèles sur Supabase (On récupère tout pour trier/filtrer)
+  // Requêtes parallèles sur Supabase
   const requeteRather = supabaseClient
     .from('mots_rather')
     .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
@@ -350,8 +348,8 @@ searchInput.addEventListener("input", async () => {
     }
   });
 
-  // Variables pour détecter la tendance globale de la recherche
-  let meilleurScoreRather Global = 0;
+  // CORRIGÉ : Plus d'espace ici !
+  let meilleurScoreRatherGlobal = 0;
   let meilleurScoreFrGlobal = 0;
 
   // Premier passage : On calcule les scores individuels
@@ -372,7 +370,7 @@ searchInput.addEventListener("input", async () => {
 
     // 2. Score Français
     let scoreFr = 0;
-    let aUnMatchFr = false; // Flag pour savoir si la traduction contient la recherche
+    let aUnMatchFr = false; 
     if (item.mots_francais && Array.isArray(item.mots_francais)) {
       item.mots_francais.forEach(f => {
         if (f.traduction_fr) {
@@ -397,20 +395,16 @@ searchInput.addEventListener("input", async () => {
   });
 
   // Détermination du sens exclusif de la recherche
-  // Si le meilleur score est côté Rather, on passe en mode RATHER_ONLY, sinon FR_ONLY
   const modeExclusif = meilleurScoreRatherGlobal >= meilleurScoreFrGlobal ? "RATHER_ONLY" : "FR_ONLY";
 
-  // Filtrage strict : on ne garde que la langue détectée
+  // Filtrage strict
   const resultatsFiltrés = resultatsScorés.filter(item => {
     if (modeExclusif === "RATHER_ONLY") {
-      // On ne garde que les mots dont le mot Rather contient la recherche
       return item.scoreRather > 0;
     } else {
-      // On ne garde que les mots dont la traduction française contient la recherche
       return item.aUnMatchFr;
     }
   }).map(item => {
-    // On ré-attribue les variables attendues par ta fonction d'affichage
     return {
       ...item,
       finalScore: modeExclusif === "RATHER_ONLY" ? item.scoreRather : item.scoreFr,
@@ -426,7 +420,7 @@ searchInput.addEventListener("input", async () => {
     return b.finalScore - a.finalScore;
   });
 
-  // Affichage final des 5 meilleurs résultats filtrés
+  // Affichage final du top 5 filtré
   if (resultatsFiltrés.length > 0) {
     resultatsFiltrés.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
   }
