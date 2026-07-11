@@ -203,55 +203,76 @@ function createEtymHtml(etymText) {
           </span>`;
 }
 
-// 3. LA FONCTION D'AFFICHAGE ADAPTÉE À SUPABASE
+// 3. LA FONCTION D'AFFICHAGE INTELLIGENTE ET INVERSABLE !
 function displayWordFromSupabase(row, query) {
   const div = document.createElement("div");
   div.classList.add("result");
 
   const category = row.categorie || "Mot";
-  
-  let html = `<span class="category">${category}</span><br>
-              <span class="word">${highlight(row.mot, query)}</span> :`;
+  let html = `<span class="category">${category}</span><br>`;
 
-  if (row.etymologie) {
-    html += ` ${createEtymHtml(row.etymologie)}`;
-  }
-
-  // Sécurité : On s'assure que mots_francais soit TOUJOURS un tableau
+  // Sécurité pour les traductions
   let traductions = [];
   if (row.mots_francais) {
     traductions = Array.isArray(row.mots_francais) ? row.mots_francais : [row.mots_francais];
   }
 
-  if (traductions.length > 0) {
-    traductions.forEach(sig => {
-      const contexte = sig.contexte_fr ? `<span class="category">(${sig.contexte_fr})</span> ` : '';
-      html += `<div class="subword">
-                ${contexte}${highlight(sig.traduction_fr, query)}
-                ${createEtymHtml(sig.etymologie)}
-              </div>`;
-    });
+  // --- LE DESIGN S'ADAPTE AU SENS DE LA RECHERCHE ---
+  if (row.directionRecherche === "FR_TO_RATHER") {
+    // L'utilisateur a cherché du français : On met le Français en gros !
+    const principalFr = traductions[0] ? traductions[0].traduction_fr : "Mot français";
+    const contexteFr = traductions[0]?.contexte_fr ? `<span class="category">(${traductions[0].contexte_fr})</span> ` : '';
+    
+    html += `<span class="word">${contexteFr}${highlight(principalFr, query)}</span> :`;
+    
+    if (traductions[0]?.etymologie) {
+      html += ` ${createEtymHtml(traductions[0].etymologie)}`;
+    }
+
+    // Et on met le mot Rather en petit juste en dessous
+    html += `<div class="subword" style="font-size: 0.9em; opacity: 0.85; margin-top: 4px;">
+              ➔ Traduction en Rather : <strong>${highlight(row.mot, query)}</strong>
+              ${row.etymologie ? createEtymHtml(row.etymologie) : ''}
+            </div>`;
+
   } else {
-    html += ` <span class="translation">Aucune traduction enregistrée</span>`;
+    // L'utilisateur a cherché du Rather (ou comportement par défaut) : Rather en gros !
+    html += `<span class="word">${highlight(row.mot, query)}</span> :`;
+
+    if (row.etymologie) {
+      html += ` ${createEtymHtml(row.etymologie)}`;
+    }
+
+    // Les traductions françaises en petit en dessous
+    if (traductions.length > 0) {
+      traductions.forEach(sig => {
+        const contexte = sig.contexte_fr ? `<span class="category">(${sig.contexte_fr})</span> ` : '';
+        html += `<div class="subword">
+                  ${contexte}${highlight(sig.traduction_fr, query)}
+                  ${createEtymHtml(sig.etymologie)}
+                </div>`;
+      });
+    } else {
+      html += ` <span class="translation">Aucune traduction enregistrée</span>`;
+    }
   }
 
   div.innerHTML = html;
   resultsDiv.appendChild(div);
 }
 
-// 4. L'ÉCOUTEUR DE RECHERCHE EN TEMPS RÉEL PRÉCIS ET TRIÉ
+// 4. L'ÉCOUTEUR DE RECHERCHE EN TEMPS RÉEL (LE CERVEAU DE L'ALGO)
 searchInput.addEventListener("input", async () => {
   let query = searchInput.value.toLowerCase().trim();
   resultsDiv.innerHTML = "";
   if(!query) return;
 
-  // REQUÊTE 1 : Recherche dans les mots Rather (Pas de .limit pour pouvoir tout trier nous-mêmes !)
+  // Requêtes parallèles sur Supabase
   const requeteRather = supabaseClient
     .from('mots_rather')
     .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
     .ilike('mot', `%${query}%`);
 
-  // REQUÊTE 2 : Recherche dans les traductions françaises
   const requeteFrancais = supabaseClient
     .from('mots_francais')
     .select('traduction_fr, contexte_fr, etymologie, mots_rather(mot, categorie, etymologie)')
@@ -265,7 +286,6 @@ searchInput.addEventListener("input", async () => {
   const donneesRather = resRather.data || [];
   const donneesFrancais = [];
 
-  // Extraction des mots Rather liés aux traductions trouvées
   if (resFrancais.data) {
     resFrancais.data.forEach(item => {
       if (item.mots_rather) {
@@ -282,10 +302,8 @@ searchInput.addEventListener("input", async () => {
     });
   }
 
-  // Fusion des résultats
+  // Fusion et dédoublonnement
   const listePlat = [...donneesRather, ...donneesFrancais];
-
-  // Nettoyage des doublons
   const resultatsUniques = [];
   const motsVus = new Set();
 
@@ -296,58 +314,68 @@ searchInput.addEventListener("input", async () => {
     }
   });
 
-  // --- ALGORITHME DE TRI INTELLIGENT ---
+  // --- ALGORITHME DE DOUBLE SCORING & DÉTECTION DU SENS ---
   const resultatsScorés = resultatsUniques.map(item => {
     const ratherMot = item.mot ? item.mot.toLowerCase() : "";
-    let maxScore = 0;
+    
+    // 1. Calcul du score côté Rather
+    let scoreRather = 0;
+    if (ratherMot === query) scoreRather = 100;
+    else if (ratherMot.startsWith(query)) scoreRather = 50;
+    else if (ratherMot.includes(query)) scoreRather = 10;
 
-    // 1. Calcul du score sur le mot Rather
-    if (ratherMot === query) {
-      maxScore = 100; // Correspondance exacte Rather
-    } else if (ratherMot.startsWith(query)) {
-      maxScore = 50;  // Commence par Rather
-    } else if (ratherMot.includes(query)) {
-      maxScore = 10;  // Contient Rather
-    }
-
-    // Le mot est-il court ? (Bonus de taille)
     if (ratherMot) {
       const diffTaille = ratherMot.length - query.length;
-      maxScore -= diffTaille * 0.5;
+      scoreRather -= diffTaille * 0.5;
     }
 
-    // 2. Calcul du score sur la traduction française (si l'utilisateur cherche via le français)
+    // 2. Calcul du score côté Français
+    let scoreFr = 0;
     if (item.mots_francais && Array.isArray(item.mots_francais)) {
       item.mots_francais.forEach(f => {
         if (f.traduction_fr) {
           const trad = f.traduction_fr.toLowerCase();
-          let scoreFr = 0;
-          if (trad === query) scoreFr = 95; // Presque aussi fort qu'une correspondance exacte Rather
-          else if (trad.startsWith(query)) scoreFr = 45;
-          else if (trad.includes(query)) scoreFr = 8;
+          let currentFrScore = 0;
+          if (trad === query) currentFrScore = 100;
+          else if (trad.startsWith(query)) currentFrScore = 50;
+          else if (trad.includes(query)) currentFrScore = 10;
 
-          // Bonus taille pour le français
           const diffTailleFr = trad.length - query.length;
-          scoreFr -= diffTailleFr * 0.5;
+          currentFrScore -= diffTailleFr * 0.5;
 
-          if (scoreFr > maxScore) maxScore = scoreFr;
+          if (currentFrScore > scoreFr) scoreFr = currentFrScore;
         }
       });
     }
 
-    return { ...item, finalScore: maxScore };
+    // 3. On détermine le gagnant et la direction de l'affichage
+    let finalScore = 0;
+    let directionRecherche = "RATHER_TO_FR"; // Par défaut
+
+    if (scoreRather >= scoreFr) {
+      finalScore = scoreRather;
+      directionRecherche = "RATHER_TO_FR"; // L'utilisateur cherche du Rather
+    } else {
+      finalScore = scoreFr;
+      directionRecherche = "FR_TO_RATHER"; // L'utilisateur cherche du Français !
+    }
+
+    return { ...item, finalScore, directionRecherche, scoreRather };
   });
 
-  // Tri du score le plus haut au plus bas
-  resultatsScorés.sort((a, b) => b.finalScore - a.finalScore);
-  // -------------------------------------
+  // Tri final
+  resultatsScorés.sort((a, b) => {
+    if (b.finalScore === a.finalScore) {
+      return a.mot.localeCompare(b.mot); // Tri alphabétique si égalité parfaite
+    }
+    return b.finalScore - a.finalScore;
+  });
 
-  // Affichage final des 5 meilleurs sur la page
+  // Affichage final du top 5
   if (resultatsScorés.length > 0) {
     resultatsScorés.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
   }
 });
 </script>
-
 </body>
 </html>
