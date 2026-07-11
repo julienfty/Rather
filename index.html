@@ -10,7 +10,6 @@
 
 * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
 
-/* Changement de la police globale pour tout le site (Inter) */
 html, body { margin:0; height:100%; font-family: 'Inter', sans-serif; }
 
 body {
@@ -34,7 +33,6 @@ body {
   padding-top:10vh;
 }
 
-/* Le titre principal reste inchangé en Arial Black comme tu le souhaitais */
 .text-wrapper {
   font-family:"arial black";
   font-weight: 900;
@@ -81,70 +79,79 @@ body {
 .results {
   width:60vw;
   max-width:932px;
-  max-height:40vh;
-  margin-top:3vh;
-  overflow-y:visible;
+  max-height:55vh; /* Augmenté légèrement pour accueillir plus de petits blocs */
+  margin-top:2vh;  /* Réduit l'espace sous la barre */
+  overflow-y:auto; /* Permet le défilement si le top 5 dépasse de l'écran */
 }
 
-/* MODIFIÉ : Utilisation de flexbox pour aérer verticalement sans chevauchement */
+/* MODIFIÉ : Boîte compacte et resserrée */
 .result {
   background:white;
-  padding:18px; /* Un poil plus d'espace interne */
-  margin-bottom:12px;
-  border-radius:20px;
-  box-shadow:0px 4px 10px rgba(0,0,0,0.5);
+  padding:10px 14px; /* Moins de padding pour éviter de forcer le scroll */
+  margin-bottom:6px;  /* Blocs plus près les uns des autres */
+  border-radius:12px; /* Arrondi légèrement réduit adapté au format compact */
+  box-shadow:0px 3px 8px rgba(0,0,0,0.4);
   position: relative;
   display: flex;
   flex-direction: column;
 }
 
-/* MODIFIÉ : On lui donne sa propre hauteur de ligne et un espacement net en dessous */
+/* MODIFIÉ : Devient un petit badge aligné sur la ligne du mot */
 .category { 
   font-weight:700; 
   color:#555; 
-  font-size: 13px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 6px; /* Crée la barrière de sécurité pour que le mot du dessous ne monte pas */
-  line-height: 1.2;
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 8px; /* Colle la catégorie juste avant le mot */
+  display: inline-block;
+  line-height: 1;
 }
 
-/* MODIFIÉ : Augmentation de la hauteur de ligne pour caler les majuscules (ex: J) */
-.word { 
-  font-size:20px; 
+/* MODIFIÉ : Aligne parfaitement la catégorie, le mot et les ":" sur une seule ligne */
+.word-line {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size:18px; 
   font-weight:700; 
-  line-height: 1.4; /* Donne de l'air au-dessus et en-dessous de la police */
+  line-height: 1.2;
+  color: #000;
 }
 
-.translation { font-size:16px; color:#333; margin-left:5px; }
+.translation { font-size:15px; color:#333; margin-left:5px; }
 
-/* MODIFIÉ : Hauteur de ligne plus propre */
+/* MODIFIÉ : Traduction du dessous beaucoup plus serrée et propre */
 .subword { 
   margin-left:15px; 
-  margin-top: 6px; 
-  margin-bottom: 4px; 
-  line-height: 1.4;
+  margin-top: 4px;  /* Presque collé au mot du dessus */
+  margin-bottom: 2px; 
+  line-height: 1.2;
 }
 
 .highlight { background: yellow; }
 
 .etym-container {
-  display: inline-block;
+  display: inline-flex;
   position: relative;
-  margin-left: 8px;
+  margin-left: 6px;
   cursor: pointer;
+  align-items: center;
 }
 
 .info-icon {
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   background-color: rgba(43,1,230,1);
   color: white;
   border-radius: 50%;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: bold;
   font-family: serif;
 }
@@ -153,45 +160,39 @@ body {
 .tooltip {
   visibility: hidden;
   width: 280px;
-  
-  /* Fond blanc transparent à 60% pour l'effet verre */
-  background-color: rgba(255, 255, 255, 0.6) !important; 
+  background-color: rgba(255, 255, 255, 0.7) !important; 
   color: #111;
   text-align: left;
-  border-radius: 20px;
-  padding: 15px;
+  border-radius: 14px;
+  padding: 12px;
   position: absolute;
-  z-index: 9999; /* Augmenté pour passer devant absolument tout */
-  bottom: 130%;
+  z-index: 9999;
+  bottom: 140%;
   left: 50%;
   transform: translateX(-50%);
   opacity: 0;
   transition: opacity 0.2s, transform 0.2s;
-  font-size: 14px;
-  line-height: 1.45;
-  box-shadow: 0px 8px 30px rgba(0,0,0,0.15);
+  font-size: 13px;
+  line-height: 1.35;
+  box-shadow: 0px 6px 20px rgba(0,0,0,0.15);
   font-weight: 500;
-
-  /* EFFET DE FLOU iOS DERRIÈRE LA POPUP */
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
 }
 
-/* Le titre de la popup en ULTRA BOLD */
 .tooltip-title {
   display: block;
-  font-weight: 900;          /* Ultra-gras supporté par Inter */
-  font-size: 15px;
+  font-weight: 900;
+  font-size: 14px;
   text-transform: uppercase;
   color: rgba(43,1,230,1);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   letter-spacing: 0.5px;
 }
 
-/* EFFET EN COULISSE AU SURVOL (FORCE L'OPACITÉ À 100%) */
 .etym-container:hover .tooltip {
   visibility: visible !important;
-  opacity: 1 !important; /* Force l'opacité max sur l'élément */
+  opacity: 1 !important;
   transform: translateX(-50%) translateY(-2px);
 }
 </style>
@@ -244,50 +245,54 @@ function displayWordFromSupabase(row, query) {
   div.classList.add("result");
 
   const category = row.categorie || "Mot";
-  let html = `<span class="category">${category}</span><br>`;
-
+  
   // Sécurité pour les traductions
   let traductions = [];
   if (row.mots_francais) {
     traductions = Array.isArray(row.mots_francais) ? row.mots_francais : [row.mots_francais];
   }
 
+  let html = "";
+
   // --- LE DESIGN S'ADAPTE AU SENS DE LA RECHERCHE ---
   if (row.directionRecherche === "FR_TO_RATHER") {
-    // L'utilisateur a cherché du français : On met le Français en gros !
     const principalFr = traductions[0] ? traductions[0].traduction_fr : "Mot français";
-    const contexteFr = traductions[0]?.contexte_fr ? `<span class="category">(${traductions[0].contexte_fr})</span> ` : '';
+    const contexteFr = traductions[0]?.contexte_fr ? `(${traductions[0].contexte_fr}) ` : '';
     
-    html += `<span class="word">${contexteFr}${highlight(principalFr, query)}</span> :`;
-    
+    // Conteneur en ligne : catégorie + mot + étymologie + les deux points collés !
+    html += `<div class="word-line">`;
+    html += `<span class="category">${category}</span>`;
+    html += `<span>${contexteFr}${highlight(principalFr, query)} :</span>`;
     if (traductions[0]?.etymologie) {
       html += ` ${createEtymHtml(traductions[0].etymologie)}`;
     }
-
-    html += `<div class="subword" style="font-size: 0.9em; color: rgba(0,0,0,0.75); margin-top: 4px;">
+    html += `</div>`;
+    
+    html += `<div class="subword" style="font-size: 0.9em; color: rgba(0,0,0,0.75); margin-top: 2px;">
               ➔ Traduction en Rather : <strong style="color: #000;">${highlight(row.mot, query)}</strong>
               ${row.etymologie ? createEtymHtml(row.etymologie) : ''}
             </div>`;
 
   } else {
-    // L'utilisateur a cherché du Rather : Rather en gros !
-    html += `<span class="word">${highlight(row.mot, query)}</span> :`;
-
+    // Mode Rather vers Français
+    html += `<div class="word-line">`;
+    html += `<span class="category">${category}</span>`;
+    html += `<span>${highlight(row.mot, query)} :</span>`;
     if (row.etymologie) {
       html += ` ${createEtymHtml(row.etymologie)}`;
     }
+    html += `</div>`;
 
-    // Les traductions françaises en petit en dessous
     if (traductions.length > 0) {
       traductions.forEach(sig => {
-        const contexte = sig.contexte_fr ? `<span class="category">(${sig.contexte_fr})</span> ` : '';
+        const contexte = sig.contexte_fr ? `<span class="category" style="background:none; padding:0; color:#555; font-size:12px; margin-right:3px;">(${sig.contexte_fr})</span> ` : '';
         html += `<div class="subword">
                   ${contexte}${highlight(sig.traduction_fr, query)}
                   ${createEtymHtml(sig.etymologie)}
                 </div>`;
       });
     } else {
-      html += ` <span class="translation">Aucune traduction enregistrée</span>`;
+      html += `<div class="subword" style="color: #666; font-style: italic;">Aucune traduction enregistrée</div>`;
     }
   }
 
