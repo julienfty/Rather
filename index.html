@@ -248,62 +248,37 @@ searchInput.addEventListener("input", async () => {
   resultsDiv.innerHTML = "";
   if(!query) return;
 
-  const rechercheTexte = query;
-
-  // 1. On cherche d'abord dans la table des mots Rather
-  const { data: dataRather, error: errRather } = await supabaseClient
+  // UNE SEULE REQUÊTE : On cherche le mot Rather, et on récupère la table liée, peu importe le nom de sa clé !
+  const { data: listePlat, error: err } = await supabaseClient
     .from('mots_rather')
     .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
-    .ilike('mot', `%${rechercheTexte}%`)
+    .or(`mot.ilike.%${query}%, mots_francais.traduction_fr.ilike.%${query}%`)
     .limit(5);
 
-  if (errRather) console.error("Erreur recherche Rather :", errRather);
-
-  // 2. On cherche AUSSI dans la table des mots français
-  const { data: dataFrancais, error: errFrancais } = await supabaseClient
-    .from('mots_francais')
-    .select('traduction_fr, contexte_fr, etymologie, mots_rather_id')
-    .ilike('traduction_fr', `%${rechercheTexte}%`)
-    .limit(5);
-
-  if (errFrancais) console.error("Erreur recherche Français :", errFrancais);
-
-  let listePlat = [...(dataRather || [])];
-
-  // 3. Si on a trouvé des traductions françaises, on va récupérer leurs mots Rather correspondants
-  if (dataFrancais && dataFrancais.length > 0) {
-    const idsRather = dataFrancais.map(item => item.mots_rather_id).filter(id => id !== null);
-    
-    if (idsRather.length > 0) {
-      const { data: dataLies, error: errLies } = await supabaseClient
-        .from('mots_rather')
-        .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
-        .in('id', idsRather);
-
-      if (!errLies && dataLies) {
-        listePlat = [...listePlat, ...dataLies];
-      }
-    }
+  if (err) {
+    console.error("Erreur recherche Supabase :", err);
+    return;
   }
 
   console.log("Mots trouvés par Supabase :", listePlat);
 
-  // Élimination des doublons
+  // Élimination des doublons (au cas où)
   const resultatsUniques = [];
   const motsVus = new Set();
 
-  listePlat.forEach(item => {
-    if (item.mot && !motsVus.has(item.mot)) {
-      motsVus.add(item.mot);
-      resultatsUniques.push(item);
-    }
-  });
+  if (listePlat) {
+    listePlat.forEach(item => {
+      if (item.mot && !motsVus.has(item.mot)) {
+        motsVus.add(item.mot);
+        resultatsUniques.push(item);
+      }
+    });
+  }
 
-  // Affichage
+  // Affichage des résultats
   if (resultatsUniques.length > 0) {
     resultatsUniques.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
   }
-});
 </script>
 </body>
 </html>
