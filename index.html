@@ -249,53 +249,46 @@ searchInput.addEventListener("input", async () => {
   if(!query) return;
 
   const rechercheTexte = query;
-  const operateur = searchInput.value.includes(" ") ? 'eq' : 'ilike';
 
-  // REQUÊTE 1 : Recherche dans la table des mots Rather
-  const requeteRather = supabaseClient
+  // 1. On cherche d'abord dans la table des mots Rather
+  const { data: dataRather, error: errRather } = await supabaseClient
     .from('mots_rather')
-    .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie, categorie)')
-    [operateur]('mot', rechercheTexte)
+    .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
+    .ilike('mot', `%${rechercheTexte}%`)
     .limit(5);
 
-  // REQUÊTE 2 : Recherche directe dans la table Français (évite le bug de filtre imbriqué)
-  const requeteFrancais = supabaseClient
+  if (errRather) console.error("Erreur recherche Rather :", errRather);
+
+  // 2. On cherche AUSSI dans la table des mots français
+  const { data: dataFrancais, error: errFrancais } = await supabaseClient
     .from('mots_francais')
-    .select('traduction_fr, contexte_fr, etymologie, categorie, mots_rather(mot, categorie, etymologie)')
-    [operateur]('traduction_fr', rechercheTexte)
+    .select('traduction_fr, contexte_fr, etymologie, mots_rather_id')
+    .ilike('traduction_fr', `%${rechercheTexte}%`)
     .limit(5);
 
-  // On lance les deux requêtes en même temps
-  const [resRather, resFrancais] = await Promise.all([requeteRather, requeteFrancais]);
+  if (errFrancais) console.error("Erreur recherche Français :", errFrancais);
 
-  if (resRather.error) console.error("Erreur recherche Rather :", resRather.error);
-  if (resFrancais.error) console.error("Erreur recherche Français :", resFrancais.error);
+  let listePlat = [...(dataRather || [])];
 
-  // On extrait et on harmonise les données pour la table Rather
-  const donneesRather = resRather.data || [];
-
-  // On transforme les données de la table Français pour qu'elles aient la même forme que la table Rather
-  const donneesFrancais = (resFrancais.data || []).map(item => {
-    if (!item.mots_rather) return null; // Si pas de mot Rather lié, on ignore
+  // 3. Si on a trouvé des traductions françaises, on va récupérer leurs mots Rather correspondants
+  if (dataFrancais && dataFrancais.length > 0) {
+    const idsRather = dataFrancais.map(item => item.mots_rather_id).filter(id => id !== null);
     
-    // Si item.mots_rather est un tableau, on prend le premier élément
-    const ratherObj = Array.isArray(item.mots_rather) ? item.mots_rather[0] : item.mots_rather;
-    
-    return {
-      mot: ratherObj.mot,
-      categorie: ratherObj.categorie || item.categorie,
-      etymologie: ratherObj.etymologie,
-      mots_francais: [item]
-    };
-  }).filter(item => item !== null);
+    if (idsRather.length > 0) {
+      const { data: dataLies, error: errLies } = await supabaseClient
+        .from('mots_rather')
+        .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
+        .in('id', idsRather);
 
-  // Fusion des deux listes
-  const listePlat = [...donneesRather, ...donneesFrancais];
+      if (!errLies && dataLies) {
+        listePlat = [...listePlat, ...dataLies];
+      }
+    }
+  }
 
-  // Regarde ce super log dans ta console !
   console.log("Mots trouvés par Supabase :", listePlat);
 
-  // Élimination des doublons de mots Rather
+  // Élimination des doublons
   const resultatsUniques = [];
   const motsVus = new Set();
 
@@ -306,7 +299,7 @@ searchInput.addEventListener("input", async () => {
     }
   });
 
-  // On affiche enfin les résultats !
+  // Affichage
   if (resultatsUniques.length > 0) {
     resultatsUniques.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
   }
