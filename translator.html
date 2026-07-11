@@ -1,4 +1,39 @@
-<nav>
-    <a href="index.html">Dictionnaire</a> | 
-    <a href="translator.html">Traducteur</a>
-</nav>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/dico_rather.css">
+    <title>Traducteur | Rather</title>
+</head>
+<body>
+
+<div class="macbook-air">
+    <div class="text-wrapper">Traducteur Rather</div>
+
+    <div class="translator-container">
+        <!-- Zone de saisie -->
+        <textarea id="source-text" placeholder="Entrez le texte à traduire..."></textarea>
+        
+        <!-- Sélecteur de langue / Action -->
+        <div class="controls">
+            <select id="language-select">
+                <option value="en-fr">Rather vers Français</option>
+                <option value="fr-en">Français vers Rather</option>
+            </select>
+            <button id="translate-btn">Traduire</button>
+        </div>
+
+        <!-- Zone de résultat -->
+        <div id="result-area" class="results-box">
+            <p>La traduction apparaîtra ici...</p>
+        </div>
+    </div>
+
+    <!-- Lien retour -->
+    <a href="index.html" class="back-link">Retour au dico</a>
+</div>
+
+<script src="js/translator.js"></script>
+</body>
+</html>
