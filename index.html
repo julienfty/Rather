@@ -188,7 +188,7 @@ body {
   align-items: center;
   gap: 1px;
   margin-top: -1px;
-  z-index: 3;
+  z-index: 5; /* MODIFIÉ : Passe de 3 à 5 pour dompter le z-index: 4 de la barre */
   transition: opacity 0.2s ease;
   position: relative;
   box-shadow: 0px 10px 15px rgba(0,0,0,0.2); 
@@ -462,7 +462,7 @@ function displayWordFromSupabase(row, query, targetContainer) {
 
   let html = "";
 
-  if (row.directionRecherche === "FR_TO_RATHER" {
+  if (row.directionRecherche === "FR_TO_RATHER") {
     const principalFr = traductions[0] ? traductions[0].traduction_fr : "Mot français";
     const contexteFr = traductions[0]?.contexte_fr ? `(${traductions[0].contexte_fr}) ` : '';
     
@@ -790,7 +790,6 @@ searchInput.addEventListener("input", async () => {
 
     const estCorrespondanceExacte = (cleMotEtudie === query);
     
-    // MODIFIÉ : Verrouillage strict des expressions composées. Si la requête contient un espace, l'égalité doit être parfaite.
     if (query.includes(" ")) {
       if (estCorrespondanceExacte) {
         displayWordFromSupabase(item, query, resultsDiv);
@@ -798,11 +797,10 @@ searchInput.addEventListener("input", async () => {
       return; 
     }
 
-    // Gestion pour les recherches d'un seul mot sans espace ("nous", "je", etc.)
     if (estCorrespondanceExacte) {
       displayWordFromSupabase(item, query, resultsDiv);
     } else if (cleMotEtudie.includes(" ")) {
-      return; // Bloque "nous inclusif" quand on cherche juste "nous"
+      return; 
     } else if (motsAutorises.has(cleMotEtudie) || motsAutorises.size < limiteMaxMotsDistincts) {
       motsAutorises.add(cleMotEtudie);
       displayWordFromSupabase(item, query, resultsDiv);
