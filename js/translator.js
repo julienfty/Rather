@@ -1,35 +1,41 @@
 const sb = window.supabaseClient;
 const resultArea = document.getElementById('result-area');
 
+// 2. Fonctions de composition (Les Algorithmes)
 const ActionsComposition = {
-    assembler_pronom: (tags) => {
-        // Logique pour ["PRONOM", "GENRE", "FLEXION"]
-        return "Traduction pronom simple";
+    // Exemple : ["PRONOM", "GENRE", "FLEXION"]
+    assembler_pronom: (tokens) => {
+        const p = tokens.find(t => t.tag === 'PRONOM')?.valeur || '';
+        const g = tokens.find(t => t.tag === 'GENRE')?.valeur || '';
+        // Ton algo ici
+        if (p === 'nia' && g === 'x') return "Je";
+        return "Pronom inconnu";
     },
-    assembler_pronom_inexgen: (tags) => {
-        // Logique pour ["PRONOM", "GENRE", "FLEXION"] (variante complexe)
-        return "Traduction pronom complexe";
-    },
-    assembler_pronom_inex: (tags) => {
-        // Logique pour ["NOMBRE", "GENRE", "PRONOM", "GENRE", "FLEXION"]
-        return "Traduction pronom avec nombre et genre";
+
+    // Exemple : ["NOMBRE", "GENRE", "PRONOM", "GENRE", "FLEXION"]
+    assembler_pronom_inex: (tokens) => {
+        // Accède aux morceaux nécessaires pour ton algo
+        const pronom = tokens.find(t => t.tag === 'PRONOM')?.valeur;
+        // ... ici tu fais tes calculs de fusion, de transformation, etc.
+        return `Traduction complexe pour le pronom ${pronom}`;
     }
 };
 
+// 3. Tokenizer amélioré (garde la valeur ET le tag)
 async function tokenize(word) {
     const { data: briques, error } = await sb.from('briques').select('code, tag_machine');
-    if (error) {
-        console.error("Erreur briques:", error);
-        return null;
-    }
+    if (error) return null;
+    
     briques.sort((a, b) => b.code.length - a.code.length);
+
     let remaining = word;
-    let tokens = [];
+    let tokens = []; // Maintenant un tableau d'objets {tag, valeur}
+
     while (remaining.length > 0) {
         let found = false;
         for (let b of briques) {
             if (remaining.startsWith(b.code)) {
-                tokens.push(b.tag_machine);
+                tokens.push({ tag: b.tag_machine, valeur: b.code });
                 remaining = remaining.slice(b.code.length);
                 found = true;
                 break;
@@ -47,32 +53,32 @@ document.getElementById('translate-btn').addEventListener('click', async () => {
 
     resultArea.innerText = "Recherche...";
 
-    // A. Découpage (Simple et propre)
-    const tags = await tokenize(text);
-    console.log("Tags identifiés :", tags);
-
-    if (!tags) {
+    const tokens = await tokenize(text);
+    if (!tokens) {
         resultArea.innerText = "Erreur : Mot inconnu.";
         return;
     }
     
-    // B. Recherche de la règle (VERSION PRÉCISE)
-const { data: regles, error } = await sb
-    .from('regle_composition')
-    .select('*')
-    .eq('ordre_tags', tags); // .eq vérifie que c'est le match exact (A = A)
+    // On extrait juste les tags pour la recherche en base
+    const tagsOnly = tokens.map(t => t.tag);
+    
+    // B. Recherche de la règle
+    const { data: regles, error } = await sb
+        .from('regle_composition')
+        .select('*')
+        .eq('ordre_tags', tagsOnly);
 
-    if (error) {
-        console.error("Erreur Supabase:", error);
-        resultArea.innerText = "Erreur DB.";
-    } else if (!regles || regles.length === 0) {
-        resultArea.innerText = "Aucune règle trouvée.";
+    if (error || !regles || regles.length === 0) {
+        resultArea.innerText = "Règle non trouvée.";
+        return;
+    }
+
+    const regle = regles[0];
+    
+    // C. Exécution de l'algorithme (on passe les tokens complets)
+    if (typeof ActionsComposition[regle.action] === 'function') {
+        resultArea.innerText = ActionsComposition[regle.action](tokens);
     } else {
-        const regle = regles[0];
-        if (typeof ActionsComposition[regle.action] === 'function') {
-            resultArea.innerText = ActionsComposition[regle.action](tags);
-        } else {
-            resultArea.innerText = "Action non définie.";
-        }
+        resultArea.innerText = "Action '" + regle.action + "' non définie.";
     }
 });
