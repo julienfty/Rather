@@ -39,6 +39,7 @@
 <div id="global-tooltip"></div>
 
 <script>
+// 1. TOOLTIP LOGIC
 const globalTooltip = document.getElementById('global-tooltip');
 let activeIcon = null;
 
@@ -89,46 +90,33 @@ if (!isTouchDevice) {
   });
 }
 
-  const translatorBtn = document.querySelector('.btn-nav');
-const searchInput = document.getElementById('search');
-const seeAllTrigger = document.getElementById('see-all-trigger');
-const closeBtn = document.getElementById('close-expanded');
+// 2. NAVIGATION BUTTON LOGIC (Wait for DOM to be ready)
+document.addEventListener("DOMContentLoaded", () => {
+    const translatorBtn = document.querySelector('.btn-nav');
+    const searchInput = document.getElementById('search');
+    const seeAllTrigger = document.getElementById('see-all-trigger');
+    const closeBtn = document.getElementById('close-expanded');
 
-// Fonction pour masquer le bouton
-function hideBtn() {
-    translatorBtn.classList.add('hidden');
-}
+    // Sécurité : On vérifie que les éléments existent avant d'ajouter des écouteurs
+    if (translatorBtn && searchInput && seeAllTrigger && closeBtn) {
+        
+        function hideBtn() { translatorBtn.classList.add('hidden'); }
+        function showBtn() { translatorBtn.classList.remove('hidden'); }
 
-// Fonction pour réafficher le bouton
-function showBtn() {
-    translatorBtn.classList.remove('hidden');
-}
+        searchInput.addEventListener('focus', hideBtn);
+        seeAllTrigger.addEventListener('click', hideBtn);
+        
+        closeBtn.addEventListener('click', () => {
+            showBtn();
+        });
 
-// 1. Quand on commence à taper dans la recherche
-searchInput.addEventListener('focus', hideBtn);
-
-// 2. Quand on ferme la recherche
-closeBtn.addEventListener('click', showBtn);
-
-// 3. Quand on clique sur "Tout voir"
-seeAllTrigger.addEventListener('click', hideBtn);
-
-// 4. Petit bonus : si on clique sur le bouton "Fermer" du menu
-// assure-toi que ton bouton de nav réapparaît
-closeBtn.addEventListener('click', () => {
-    showBtn();
-});
-  
-  searchInput.addEventListener('blur', () => {
-    // On réaffiche si la barre est vide après un court délai
-    setTimeout(() => {
-        if (searchInput.value === "") showBtn();
-    }, 200);
+        searchInput.addEventListener('blur', () => {
+            setTimeout(() => {
+                if (searchInput.value === "") showBtn();
+            }, 200);
+        });
+    }
 });
 </script>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/db.js"></script>
-  <script src="js/dico_rather.js"></script>
 </body>
 </html>
