@@ -293,7 +293,7 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const searchInput = document.getElementById("search");
 const resultsDiv = document.getElementById("results");
 
-// Garde ta fonction de surlignage intacte !
+// Fonction de surlignage
 function highlight(text, query){
   if(!text || !query) return text || "";
   const regex = new RegExp(`(${query})`, 'gi');
@@ -308,13 +308,12 @@ function createEtymHtml(etymText) {
           </span>`;
 }
 
-// 3. LA FONCTION D'AFFICHAGE INTELLIGENTE ET INVERSABLE !
+// LA FONCTION D'AFFICHAGE INTELLIGENTE ET INVERSABLE
 function displayWordFromSupabase(row, query) {
   const div = document.createElement("div");
   div.classList.add("result");
 
   const category = row.categorie || "Mot";
-  
   let traductions = [];
   if (row.mots_francais) {
     traductions = Array.isArray(row.mots_francais) ? row.mots_francais : [row.mots_francais];
@@ -365,12 +364,13 @@ function displayWordFromSupabase(row, query) {
   resultsDiv.appendChild(div);
 }
 
-// 4. L'ÉCOUTEUR DE RECHERCHE AVEC FILTRE D'AFFICHAGE EXCLUSIF
+// L'ÉCOUTEUR DE RECHERCHE AVEC EXCEPTION POUR DOUBLONS DE SENS
 searchInput.addEventListener("input", async () => {
   let query = searchInput.value.toLowerCase().trim();
   resultsDiv.innerHTML = "";
   if(!query) return;
 
+  // Récupération des données
   const requeteRather = supabaseClient
     .from('mots_rather')
     .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
@@ -382,9 +382,6 @@ searchInput.addEventListener("input", async () => {
     .ilike('traduction_fr', `%${query}%`);
 
   const [resRather, resFrancais] = await Promise.all([requeteRather, requeteFrancais]);
-
-  if (resRather.error) console.error("Erreur recherche Rather :", resRather.error);
-  if (resFrancais.error) console.error("Erreur recherche Français :", resFrancais.error);
 
   const donneesRather = resRather.data || [];
   const donneesFrancais = [];
@@ -405,21 +402,14 @@ searchInput.addEventListener("input", async () => {
     });
   }
 
+  // Fusion de toutes les lignes trouvées
   const listePlat = [...donneesRather, ...donneesFrancais];
-  const resultatsUniques = [];
-  const motsVus = new Set();
-
-  listePlat.forEach(item => {
-    if (item.mot && !motsVus.has(item.mot)) {
-      motsVus.add(item.mot);
-      resultatsUniques.push(item);
-    }
-  });
 
   let meilleurScoreRatherGlobal = 0;
   let meilleurScoreFrGlobal = 0;
 
-  const resultatsScorés = resultatsUniques.map(item => {
+  // Attribution des scores
+  const resultatsScorés = listePlat.map(item => {
     const ratherMot = item.mot ? item.mot.toLowerCase() : "";
     
     let scoreRather = 0;
@@ -435,12 +425,17 @@ searchInput.addEventListener("input", async () => {
 
     let scoreFr = 0;
     let aUnMatchFr = false; 
+    let estMatchParfaitFr = false;
+
     if (item.mots_francais && Array.isArray(item.mots_francais)) {
       item.mots_francais.forEach(f => {
         if (f.traduction_fr) {
           const trad = f.traduction_fr.toLowerCase();
           let currentFrScore = 0;
-          if (trad === query) currentFrScore = 100;
+          if (trad === query) {
+            currentFrScore = 100;
+            estMatchParfaitFr = true;
+          }
           else if (trad.startsWith(query)) currentFrScore = 50;
           else if (trad.includes(query)) currentFrScore = 10;
 
@@ -455,17 +450,22 @@ searchInput.addEventListener("input", async () => {
     }
     if (scoreFr > meilleurScoreFrGlobal) meilleurScoreFrGlobal = scoreFr;
 
-    return { ...item, scoreRather, scoreFr, aUnMatchFr };
+    return { 
+      ...item, 
+      scoreRather, 
+      scoreFr, 
+      aUnMatchFr, 
+      estMatchParfaitRather: (ratherMot === query),
+      estMatchParfaitFr
+    };
   });
 
+  // Détermination de la langue cible
   const modeExclusif = meilleurScoreRatherGlobal >= meilleurScoreFrGlobal ? "RATHER_ONLY" : "FR_ONLY";
 
-  const resultatsFiltrés = resultatsScorés.filter(item => {
-    if (modeExclusif === "RATHER_ONLY") {
-      return item.scoreRather > 0;
-    } else {
-      return item.aUnMatchFr;
-    }
+  // Premier filtrage par langue et assignation de la direction
+  let resultatsFiltrés = resultatsScorés.filter(item => {
+    return modeExclusif === "RATHER_ONLY" ? item.scoreRather > 0 : item.aUnMatchFr;
   }).map(item => {
     return {
       ...item,
@@ -474,15 +474,39 @@ searchInput.addEventListener("input", async () => {
     };
   });
 
-  resultatsFiltrés.sort((a, b) => {
-    if (b.finalScore === a.finalScore) {
-      return a.mot.localeCompare(b.mot);
-    }
-    return b.finalScore - a.finalScore;
-  });
+  // --- LE COEUR DE TON EXCEPTION ---
+  // On regarde s'il y a un ou plusieurs matchs exacts (Score = 100)
+  const aUnMatchParfaitGlobal = resultatsFiltrés.some(item => 
+    modeExclusif === "RATHER_ONLY" ? item.estMatchParfaitRather : item.estMatchParfaitFr
+  );
 
-  if (resultatsFiltrés.length > 0) {
-    resultatsFiltrés.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
+  if (aUnMatchParfaitGlobal) {
+    // CONDITION SPÉCIALE : On ne garde QUE les lignes qui correspondent exactement à ce mot exact
+    resultatsFiltrés = resultatsFiltrés.filter(item => 
+      modeExclusif === "RATHER_ONLY" ? item.estMatchParfaitRather : item.estMatchParfaitFr
+    );
+    
+    // On affiche l'intégralité des traductions sans AUCUNE limite de 5 !
+    resultatsFiltrés.forEach(row => displayWordFromSupabase(row, query));
+
+  } else {
+    // COMPORTEMENT NORMAL : Si c'est une recherche partielle (ex: l'utilisateur écrit juste "at")
+    // On applique le dédoublonnage classique par mot pour ne pas surcharger
+    const resultatsUniques = [];
+    const motsVus = new Set();
+
+    resultatsFiltrés.forEach(item => {
+      if (item.mot && !motsVus.has(item.mot)) {
+        motsVus.add(item.mot);
+        resultatsUniques.push(item);
+      }
+    });
+
+    // Tri par score
+    resultatsUniques.sort((a, b) => b.finalScore - a.finalScore);
+
+    // On applique la limite historique des 5 premiers résultats
+    resultatsUniques.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
   }
 });
 </script>
