@@ -79,24 +79,22 @@ body {
 .results {
   width:60vw;
   max-width:932px;
-  max-height:55vh; /* Augmenté légèrement pour accueillir plus de petits blocs */
-  margin-top:2vh;  /* Réduit l'espace sous la barre */
-  overflow-y:auto; /* Permet le défilement si le top 5 dépasse de l'écran */
+  max-height:55vh; 
+  margin-top:2vh;  
+  overflow-y:auto; 
 }
 
-/* MODIFIÉ : Boîte compacte et resserrée */
 .result {
   background:white;
-  padding:10px 14px; /* Moins de padding pour éviter de forcer le scroll */
-  margin-bottom:6px;  /* Blocs plus près les uns des autres */
-  border-radius:12px; /* Arrondi légèrement réduit adapté au format compact */
+  padding:10px 14px; 
+  margin-bottom:6px;  
+  border-radius:12px; 
   box-shadow:0px 3px 8px rgba(0,0,0,0.4);
   position: relative;
   display: flex;
   flex-direction: column;
 }
 
-/* MODIFIÉ : Devient un petit badge aligné sur la ligne du mot */
 .category { 
   font-weight:700; 
   color:#555; 
@@ -106,12 +104,11 @@ body {
   background: #f0f0f0;
   padding: 2px 6px;
   border-radius: 4px;
-  margin-right: 8px; /* Colle la catégorie juste avant le mot */
+  margin-right: 8px; 
   display: inline-block;
   line-height: 1;
 }
 
-/* MODIFIÉ : Aligne parfaitement la catégorie, le mot et les ":" sur une seule ligne */
 .word-line {
   display: inline-flex;
   align-items: center;
@@ -124,10 +121,9 @@ body {
 
 .translation { font-size:15px; color:#333; margin-left:5px; }
 
-/* MODIFIÉ : Traduction du dessous beaucoup plus serrée et propre */
 .subword { 
   margin-left:15px; 
-  margin-top: 4px;  /* Presque collé au mot du dessus */
+  margin-top: 4px;  
   margin-bottom: 2px; 
   line-height: 1.2;
 }
@@ -140,6 +136,7 @@ body {
   margin-left: 6px;
   cursor: pointer;
   align-items: center;
+  vertical-align: middle;
 }
 
 .info-icon {
@@ -156,34 +153,41 @@ body {
   font-family: serif;
 }
 
-/* LA POPUP LOOK INVERSE iOS FROSTED GLASS */
+/* LA POPUP PARFAITEMENT SÉCURISÉE CONTRE LE ROGNAGE */
 .tooltip {
   visibility: hidden;
-  width: 280px;
-  background-color: rgba(255, 255, 255, 0.7) !important; 
+  width: 260px;
+  
+  /* Fond blanc un peu plus opaque (0.85) pour éliminer l'effet brouillard */
+  background-color: rgba(255, 255, 255, 0.85) !important; 
   color: #111;
   text-align: left;
-  border-radius: 14px;
-  padding: 12px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  
+  /* On la décale vers le bas pour qu'elle sorte du piège du scroll de la boîte */
   position: absolute;
-  z-index: 9999;
-  bottom: 140%;
-  left: 50%;
-  transform: translateX(-50%);
+  z-index: 99999;
+  top: 100%;       
+  left: 10px;      
+  transform: translateY(5px);
+  
   opacity: 0;
   transition: opacity 0.2s, transform 0.2s;
   font-size: 13px;
   line-height: 1.35;
-  box-shadow: 0px 6px 20px rgba(0,0,0,0.15);
+  box-shadow: 0px 8px 24px rgba(0,0,0,0.2);
   font-weight: 500;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
+  
+  /* Effet frosted glass adouci */
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
 }
 
 .tooltip-title {
   display: block;
   font-weight: 900;
-  font-size: 14px;
+  font-size: 13px;
   text-transform: uppercase;
   color: rgba(43,1,230,1);
   margin-bottom: 4px;
@@ -193,7 +197,7 @@ body {
 .etym-container:hover .tooltip {
   visibility: visible !important;
   opacity: 1 !important;
-  transform: translateX(-50%) translateY(-2px);
+  transform: translateY(5px); 
 }
 </style>
 </head>
