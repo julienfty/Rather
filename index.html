@@ -465,7 +465,7 @@ function displayWordFromSupabase(row, query, targetContainer) {
   if (row.directionRecherche === "FR_TO_RATHER") {
     const principalFr = traductions[0] ? traductions[0].traduction_fr : "Mot français";
     const contexteFr = traductions[0]?.contexte_fr ? `(${traductions[0].contexte_fr}) ` : '';
-    
+     
     html += `<div class="word-line">`;
     html += `<span class="category">${category}</span>`;
     if(subcategory) {
@@ -476,7 +476,7 @@ function displayWordFromSupabase(row, query, targetContainer) {
       html += ` ${createEtymHtml(traductions[0].etymologie)}`;
     }
     html += `</div>`;
-    
+     
     html += `<div class="subword" style="font-size: 0.9em; color: rgba(0,0,0,0.75); margin-top: 2px;">
               ➔ Traduction en Rather : <strong style="color: #000;">${highlight(row.mot, query)}</strong>
               ${row.etymologie ? createEtymHtml(row.etymologie) : ''}
@@ -527,10 +527,10 @@ function applyFiltersInExpanded() {
       const subCatItem = (item.sous_categorie || "").toLowerCase().trim();
       if (subCatItem !== currentSubFilter.toLowerCase().trim()) return false;
     }
-    
+     
     const matchRather = item.mot && item.mot.toLowerCase().includes(query);
     const matchFr = item.mots_francais && (Array.isArray(item.mots_francais) ? item.mots_francais : [item.mots_francais]).some(f => f.traduction_fr && f.traduction_fr.toLowerCase().includes(query));
-    
+     
     return matchRather || matchFr;
   });
 
@@ -607,7 +607,7 @@ function buildMainFilterButtons(data) {
       mainFilterBar.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       currentMainFilter = cat;
-      
+       
       updateSubCategoryBar();
       applyFiltersInExpanded();
     });
@@ -654,7 +654,7 @@ seeAllTrigger.addEventListener("click", async () => {
     }
 
     window.allWordsCache = allRecords.map(item => ({ ...item, directionRecherche: "RATHER_TO_FR" }));
-    
+     
     buildMainFilterButtons(window.allWordsCache);
     applyFiltersInExpanded();
 
@@ -677,7 +677,8 @@ closeExpanded.addEventListener("click", () => {
 });
 
 searchInput.addEventListener("input", async () => {
-  let query = searchInput.value.toLowerCase().trim();
+  // Ici on garde les espaces pendant la frappe pour compter les paliers
+  let query = searchInput.value.toLowerCase();
   
   if (searchContainer.classList.contains("expanded")) {
     applyFiltersInExpanded();
@@ -685,17 +686,17 @@ searchInput.addEventListener("input", async () => {
   }
 
   resultsDiv.innerHTML = "";
-  if(!query) return;
+  if(!query.trim()) return;
 
   const requeteRather = supabaseClient
     .from('mots_rather')
     .select('mot, categorie, sous_categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
-    .ilike('mot', `%${query}%`);
+    .ilike('mot', `%${query.trim()}%`);
 
   const requeteFrancais = supabaseClient
     .from('mots_francais')
     .select('traduction_fr, contexte_fr, etymologie, mots_rather(mot, categorie, sous_categorie, etymologie)')
-    .ilike('traduction_fr', `%${query}%`);
+    .ilike('traduction_fr', `%${query.trim()}%`);
 
   const [resRather, resFrancais] = await Promise.all([requeteRather, requeteFrancais]);
 
@@ -725,14 +726,14 @@ searchInput.addEventListener("input", async () => {
 
   const resultatsScorés = listePlat.map(item => {
     const ratherMot = item.mot ? item.mot.toLowerCase().trim() : "";
-    
+     
     let scoreRather = 0;
-    if (ratherMot === query) scoreRather = 100;
-    else if (ratherMot.startsWith(query)) scoreRather = 50;
-    else if (ratherMot.includes(query)) scoreRather = 10;
+    if (ratherMot === query.trim()) scoreRather = 100;
+    else if (ratherMot.startsWith(query.trim())) scoreRather = 50;
+    else if (ratherMot.includes(query.trim())) scoreRather = 10;
 
     if (ratherMot) {
-      const diffTaille = ratherMot.length - query.length;
+      const diffTaille = ratherMot.length - query.trim().length;
       scoreRather -= diffTaille * 0.5;
     }
     if (scoreRather > meilleurScoreRatherGlobal) meilleurScoreRatherGlobal = scoreRather;
@@ -745,13 +746,13 @@ searchInput.addEventListener("input", async () => {
         if (f.traduction_fr) {
           const trad = f.traduction_fr.toLowerCase().trim();
           let currentFrScore = 0;
-          if (trad === query) currentFrScore = 100;
-          else if (trad.startsWith(query)) currentFrScore = 50;
-          else if (trad.includes(query)) currentFrScore = 10;
+          if (trad === query.trim()) currentFrScore = 100;
+          else if (trad.startsWith(query.trim())) currentFrScore = 50;
+          else if (trad.includes(query.trim())) currentFrScore = 10;
 
           if (currentFrScore > 0) aUnMatchFr = true;
 
-          const diffTailleFr = trad.length - query.length;
+          const diffTailleFr = trad.length - query.trim().length;
           currentFrScore -= diffTailleFr * 0.5;
 
           if (currentFrScore > scoreFr) scoreFr = currentFrScore;
@@ -780,6 +781,9 @@ searchInput.addEventListener("input", async () => {
   const motsAutorises = new Set();
   const limiteMaxMotsDistincts = 5;
 
+  // 1. On compte les espaces saisis par l'utilisateur (le palier actuel)
+  const nombreEspacesQuery = (query.match(/ /g) || []).length;
+
   resultatsFiltrés.forEach(item => {
     let cleMotEtudie = "";
     if (item.directionRecherche === "FR_TO_RATHER" && item.mots_francais && item.mots_francais[0]) {
@@ -788,22 +792,21 @@ searchInput.addEventListener("input", async () => {
       cleMotEtudie = item.mot.toLowerCase().trim();
     }
 
-    const estCorrespondanceExacte = (cleMotEtudie === query);
-    
-    if (query.includes(" ")) {
-      if (estCorrespondanceExacte) {
-        displayWordFromSupabase(item, query, resultsDiv);
-      }
-      return; 
+    // 2. On compte les espaces présents dans l'expression de la base de données
+    const nombreEspacesMot = (cleMotEtudie.match(/ /g) || []).length;
+
+    // 3. RÈGLE DES PALIERS : L'expression doit avoir STRICTEMENT le même nombre d'espaces
+    if (nombreEspacesMot !== nombreEspacesQuery) {
+      return; // On zappe les expressions trop courtes ou trop longues
     }
 
+    const estCorrespondanceExacte = (cleMotEtudie === query.trim());
+    
     if (estCorrespondanceExacte) {
-      displayWordFromSupabase(item, query, resultsDiv);
-    } else if (cleMotEtudie.includes(" ")) {
-      return; 
+      displayWordFromSupabase(item, query.trim(), resultsDiv);
     } else if (motsAutorises.has(cleMotEtudie) || motsAutorises.size < limiteMaxMotsDistincts) {
       motsAutorises.add(cleMotEtudie);
-      displayWordFromSupabase(item, query, resultsDiv);
+      displayWordFromSupabase(item, query.trim(), resultsDiv);
     }
   });
 });
