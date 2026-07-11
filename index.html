@@ -275,6 +275,7 @@ searchInput.addEventListener("input", async () => {
 
   // On élimine les doublons au cas où un mot correspondrait aux deux requêtes
   const resultatsUniques = [];
+  console.log("Mots trouvés par Supabase :", listePlat);
   const motsVus = new Set();
 
   listePlat.forEach(item => {
