@@ -62,11 +62,12 @@ document.getElementById('translate-btn').addEventListener('click', async () => {
     // On extrait juste les tags pour la recherche en base
     const tagsOnly = tokens.map(t => t.tag);
     
-    // B. Recherche de la règle
-    const { data: regles, error } = await sb
-        .from('regle_composition')
-        .select('*')
-        .eq('ordre_tags', tagsOnly);
+   // B. Recherche de la règle (Version robuste)
+const { data: regles, error } = await sb
+    .from('regle_composition')
+    .select('*')
+    .contains('ordre_tags', tagsOnly) // Vérifie que notre tableau est contenu dans la base
+    .filter('ordre_tags', 'cs', tagsOnly); // 'cs' (contains) assure que les tailles sont identiques
 
     if (error || !regles || regles.length === 0) {
         resultArea.innerText = "Règle non trouvée.";
