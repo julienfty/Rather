@@ -248,34 +248,64 @@ searchInput.addEventListener("input", async () => {
   resultsDiv.innerHTML = "";
   if(!query) return;
 
-  // UNE SEULE REQUÊTE : On cherche partout d'un coup grâce au .or()
-  const { data: listePlat, error: err } = await supabaseClient
+  // REQUÊTE 1 : On cherche dans les mots Rather
+  const requeteRather = supabaseClient
     .from('mots_rather')
     .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
-    .or(`mot.ilike.%${query}%, mots_francais.traduction_fr.ilike.%${query}%`)
+    .ilike('mot', `%${query}%`)
     .limit(5);
 
-  if (err) {
-    console.error("Erreur recherche Supabase :", err);
-    return;
-  }
+  // REQUÊTE 2 : On cherche dans la table français et on demande son mot plutôt associé
+  const requeteFrancais = supabaseClient
+    .from('mots_francais')
+    .select('traduction_fr, contexte_fr, etymologie, mots_rather(mot, categorie, etymologie)')
+    .ilike('traduction_fr', `%${query}%`)
+    .limit(5);
 
-  console.log("Mots trouvés par Supabase :", listePlat);
+  const [resRather, resFrancais] = await Promise.all([requeteRather, requeteFrancais]);
 
-  // Élimination des doublons
-  const resultatsUniques = [];
-  const motsVus = new Set();
+  if (resRather.error) console.error("Erreur recherche Rather :", resRather.error);
+  if (resFrancais.error) console.error("Erreur recherche Français :", resFrancais.error);
 
-  if (listePlat) {
-    listePlat.forEach(item => {
-      if (item.mot && !motsVus.has(item.mot)) {
-        motsVus.add(item.mot);
-        resultatsUniques.push(item);
+  const donneesRather = resRather.data || [];
+  const donneesFrancais = [];
+
+  // On extrait proprement les mots Rather trouvés via la recherche française
+  if (resFrancais.data) {
+    resFrancais.data.forEach(item => {
+      if (item.mots_rather) {
+        // Supabase peut renvoyer un objet ou un tableau d'un seul élément
+        const ratherObj = Array.isArray(item.mots_rather) ? item.mots_rather[0] : item.mots_rather;
+        
+        if (ratherObj) {
+          donneesFrancais.push({
+            mot: ratherObj.mot,
+            categorie: ratherObj.categorie,
+            etymologie: ratherObj.etymologie,
+            mots_francais: [item]
+          });
+        }
       }
     });
   }
 
-  // Affichage des résultats
+  // Fusion des deux listes
+  const listePlat = [...donneesRather, ...donneesFrancais];
+
+  console.log("Mots trouvés par Supabase :", listePlat);
+
+  // Suppression des doublons
+  const resultatsUniques = [];
+  const motsVus = new Set();
+
+  listePlat.forEach(item => {
+    if (item.mot && !motsVus.has(item.mot)) {
+      motsVus.add(item.mot);
+      resultatsUniques.push(item);
+    }
+  });
+
+  // Affichage final
   if (resultatsUniques.length > 0) {
     resultatsUniques.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
   }
