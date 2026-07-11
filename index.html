@@ -343,7 +343,7 @@ body {
   
   <div class="search-wrapper">
     <div class="rectangle" id="search-container">
-      <input type="text" id="search" class="search-input" placeholder="Tape le mot que tu veux rechercher !">
+      <input type="text" id="search" class="search-input" placeholder="Rechercher">
       <button class="close-btn" id="close-expanded">Fermer</button>
       
       <div class="expanded-content">
@@ -626,7 +626,7 @@ seeAllTrigger.addEventListener("click", async () => {
   expandedResults.innerHTML = "<div style='color:#666; text-align:center; padding-top:30px; font-size:14px;'>Chargement complet de la base de données...</div>";
   resultsDiv.innerHTML = "";
   searchInput.value = "";
-  searchInput.placeholder = "Filtrer dans tout le dictionnaire...";
+  searchInput.placeholder = "Rechercher dans tout le ditctionaire";
 
   let allRecords = [];
   let from = 0;
@@ -668,7 +668,7 @@ closeExpanded.addEventListener("click", () => {
   seeAllTrigger.style.opacity = "1";
   seeAllTrigger.style.pointerEvents = "auto";
   searchInput.value = "";
-  searchInput.placeholder = "Tape le mot que tu veux rechercher !";
+  searchInput.placeholder = "Rechercher";
   expandedResults.innerHTML = "";
   mainFilterBar.innerHTML = "";
   subFilterBar.innerHTML = "";
