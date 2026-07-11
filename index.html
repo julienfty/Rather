@@ -237,14 +237,14 @@ function displayWordFromSupabase(row, query) {
       html += ` ${createEtymHtml(traductions[0].etymologie)}`;
     }
 
-    // Et on met le mot Rather en petit juste en dessous
-    html += `<div class="subword" style="font-size: 0.9em; opacity: 0.85; margin-top: 4px;">
-              ➔ Traduction en Rather : <strong>${highlight(row.mot, query)}</strong>
+    // CORRECTIF ICI : On vire l'opacity: 0.85 du style, et on utilise color: rgba(...) à la place !
+    html += `<div class="subword" style="font-size: 0.9em; color: rgba(0,0,0,0.75); margin-top: 4px;">
+              ➔ Traduction en Rather : <strong style="color: #000;">${highlight(row.mot, query)}</strong>
               ${row.etymologie ? createEtymHtml(row.etymologie) : ''}
             </div>`;
 
   } else {
-    // L'utilisateur a cherché du Rather (ou comportement par défaut) : Rather en gros !
+    // L'utilisateur a cherché du Rather : Rather en gros !
     html += `<span class="word">${highlight(row.mot, query)}</span> :`;
 
     if (row.etymologie) {
