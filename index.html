@@ -263,10 +263,10 @@ searchInput.addEventListener("input", async () => {
 
   // Gestion de la recherche stricte (si l'utilisateur met un espace)
   if (searchInput.value.includes(" ")) {
-    recherche = recherche.or(`mot.ilike.${query},significations.traduction_fr.ilike.${query}`);
+    recherche = recherche.or(`mot.ilike.${query},mots_francais.traduction_fr.ilike.${query}`);
   } else {
     // Recherche floue (contient le mot)
-    recherche = recherche.or(`mot.ilike.*${query}*,significations.traduction_fr.ilike.*${query}*`);
+    recherche = recherche.or(`mot.ilike.*${query}*,mots_francais.traduction_fr.ilike.*${query}*`);
   }
 
   // On limite à 5 résultats maximum comme dans ton ancien code
