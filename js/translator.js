@@ -53,27 +53,31 @@ document.getElementById('translate-btn').addEventListener('click', async () => {
         return;
     }
     
-    // B. Recherche de la règle dans Supabase
-    // On transforme le tableau en texte pour correspondre au type 'varchar' de la base
-    const tagsString = tags.join(','); 
-    console.log("Recherche dans la base avec la chaîne :", tagsString);
+  // B. Recherche de la règle dans Supabase
+const tagsString = tags.join(','); 
+console.log("Chaîne cherchée dans la base : '" + tagsString + "'");
 
-    const { data: regle, error } = await sb
-        .from('regle_composition')
-        .select('*')
-        .eq('ordre_tags', tagsString) // Utilisation de la chaîne de texte
-        .maybeSingle(); // Plus sûr que .single()
+const { data: regles, error } = await sb
+    .from('regle_composition')
+    .select('*')
+    .eq('ordre_tags', tagsString); 
 
-    if (error || !regle) {
-        console.error("Erreur règle:", error);
-        resultArea.innerText = "Règle non trouvée pour : " + tagsString;
-        return;
-    }
-
-    // C. Exécution de l'action
+if (error) {
+    console.error("Erreur Supabase:", error);
+    resultArea.innerText = "Erreur de base de données.";
+} else if (!regles || regles.length === 0) {
+    console.log("Aucune correspondance trouvée pour : '" + tagsString + "'");
+    // Affichons une alerte pour toi
+    resultArea.innerText = "Règle non trouvée pour : " + tagsString + ". Vérifie les espaces dans la base !";
+} else {
+    // Si on trouve quelque chose, on prend le premier
+    const regle = regles[0];
+    console.log("Règle trouvée :", regle);
+    
     if (typeof ActionsComposition[regle.action] === 'function') {
         resultArea.innerText = ActionsComposition[regle.action](tags);
     } else {
-        resultArea.innerText = "Erreur : Action '" + regle.action + "' non définie.";
+        resultArea.innerText = "Action '" + regle.action + "' non définie.";
     }
+}
 });
