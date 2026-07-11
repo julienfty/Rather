@@ -244,70 +244,33 @@ function displayWordFromSupabase(row, query) {
 
 // 4. L'ÉCOUTEUR DE RECHERCHE EN TEMPS RÉEL SUR SUPABASE
 searchInput.addEventListener("input", async () => {
-  let query = searchInput.value.toLowerCase().trim();
+  let query = searchInput.value.trim();
   resultsDiv.innerHTML = "";
   if(!query) return;
 
-  // REQUÊTE 1 : On cherche dans les mots Rather
-  const requeteRather = supabaseClient
+  console.log("--- TEST DE CONNEXION BRUTE ---");
+
+  // On demande TOUT sans aucun filtre pour voir si la table est vide ou non !
+  const { data: tousLesMots, error: err } = await supabaseClient
     .from('mots_rather')
-    .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
-    .ilike('mot', `%${query}%`)
+    .select('mot, categorie, etymologie')
     .limit(5);
 
-  // REQUÊTE 2 : On cherche dans la table français et on demande son mot plutôt associé
-  const requeteFrancais = supabaseClient
-    .from('mots_francais')
-    .select('traduction_fr, contexte_fr, etymologie, mots_rather(mot, categorie, etymologie)')
-    .ilike('traduction_fr', `%${query}%`)
-    .limit(5);
-
-  const [resRather, resFrancais] = await Promise.all([requeteRather, requeteFrancais]);
-
-  if (resRather.error) console.error("Erreur recherche Rather :", resRather.error);
-  if (resFrancais.error) console.error("Erreur recherche Français :", resFrancais.error);
-
-  const donneesRather = resRather.data || [];
-  const donneesFrancais = [];
-
-  // On extrait proprement les mots Rather trouvés via la recherche française
-  if (resFrancais.data) {
-    resFrancais.data.forEach(item => {
-      if (item.mots_rather) {
-        // Supabase peut renvoyer un objet ou un tableau d'un seul élément
-        const ratherObj = Array.isArray(item.mots_rather) ? item.mots_rather[0] : item.mots_rather;
-        
-        if (ratherObj) {
-          donneesFrancais.push({
-            mot: ratherObj.mot,
-            categorie: ratherObj.categorie,
-            etymologie: ratherObj.etymologie,
-            mots_francais: [item]
-          });
-        }
-      }
-    });
+  if (err) {
+    console.error("Erreur brute Supabase :", err);
+    return;
   }
 
-  // Fusion des deux listes
-  const listePlat = [...donneesRather, ...donneesFrancais];
+  console.log("Contenu réel de ta table 'mots_rather' reçu :", tousLesMots);
 
-  console.log("Mots trouvés par Supabase :", listePlat);
-
-  // Suppression des doublons
-  const resultatsUniques = [];
-  const motsVus = new Set();
-
-  listePlat.forEach(item => {
-    if (item.mot && !motsVus.has(item.mot)) {
-      motsVus.add(item.mot);
-      resultatsUniques.push(item);
-    }
-  });
-
-  // Affichage final
-  if (resultatsUniques.length > 0) {
-    resultatsUniques.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
+  if (tousLesMots && tousLesMots.length > 0) {
+    tousLesMots.forEach(row => {
+      const div = document.createElement("div");
+      div.innerHTML = `<b>Mot trouvé :</b> ${row.mot} (Catégorie: ${row.categorie})`;
+      resultsDiv.appendChild(div);
+    });
+  } else {
+    console.log("La table 'mots_rather' renvoie 0 lignes. Elle est vide ou le projet est mauvais !");
   }
 });
 </script>
