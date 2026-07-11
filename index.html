@@ -41,7 +41,6 @@ body {
   text-align: center;
 }
 
-/* Structure globale pour la barre + l'encoche */
 .search-wrapper {
   width:100%;
   max-width:932px;
@@ -77,7 +76,7 @@ body {
   font-family:"Inter", sans-serif;
   font-weight: 500;
   padding-left: 20px;
-  padding-right: 80px; /* Espace pour le bouton fermer */
+  padding-right: 80px;
   outline:none;
   color:#000;
 }
@@ -85,7 +84,6 @@ body {
     color: rgba(0,0,0,0.7);
 }
 
-/* Zone de contenu déroulée */
 .expanded-content {
   display: none;
   height: calc(100% - 56px);
@@ -99,22 +97,35 @@ body {
   border-bottom: 1px solid #eee;
 }
 
-/* Zone des boutons de filtres */
+/* Zone des filtres avec support multi-lignes si besoin */
+.filter-container {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid #f5f5f5;
+  background: #fafafa;
+}
+
 .filter-bar {
   display: flex;
   gap: 8px;
-  padding: 12px 20px;
+  padding: 10px 20px;
   overflow-x: auto;
   white-space: nowrap;
-  border-bottom: 1px solid #f5f5f5;
-  scrollbar-width: none; /* Cache la scrollbar sur Firefox */
+  scrollbar-width: none;
 }
 .filter-bar::-webkit-scrollbar {
-  display: none; /* Cache la scrollbar sur Chrome/Safari */
+  display: none;
+}
+
+/* Style de la deuxième ligne pour les sous-catégories */
+#sub-filter-bar {
+  border-top: 1px solid #f0f0f0;
+  padding: 8px 20px;
+  display: none; /* Caché par défaut */
 }
 
 .filter-btn {
-  background: #f0f0f0;
+  background: #ededed;
   border: none;
   padding: 6px 14px;
   border-radius: 20px;
@@ -129,7 +140,18 @@ body {
   color: white;
 }
 
-/* Zone de défilement des mots dans le mode dictionnaire */
+/* Style un poil plus léger pour les boutons de sous-catégories */
+#sub-filter-bar .filter-btn {
+  background: #fff;
+  border: 1px solid #ddd;
+  color: #666;
+}
+#sub-filter-bar .filter-btn.active {
+  background: #333;
+  border-color: #333;
+  color: white;
+}
+
 .expanded-scroll-area {
   flex: 1;
   overflow-y: auto;
@@ -154,7 +176,6 @@ body {
   display: block;
 }
 
-/* MODIFIÉ : Encoche style iPhone sans démarcation */
 .see-all-notch {
   background: white;
   color: rgba(43,1,230,1);
@@ -170,7 +191,7 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  margin-top: -1px; /* Fusion parfaite avec le rectangle */
+  margin-top: -1px;
   z-index: 1;
   transition: opacity 0.2s ease;
 }
@@ -214,6 +235,11 @@ body {
   margin-right: 8px; 
   display: inline-block;
   line-height: 1;
+}
+
+.subcategory-badge {
+  background: #e6e6ff !important;
+  color: rgba(43,1,230,1) !important;
 }
 
 .word-line {
@@ -297,20 +323,21 @@ body {
 <div class="macbook-air">
   <div class="text-wrapper">Rather</div>
   
-  <!-- CONTENEUR GLOBAL BARRE + ENCOCHE -->
   <div class="search-wrapper">
     <div class="rectangle" id="search-container">
       <input type="text" id="search" class="search-input" placeholder="Tape le mot que tu veux rechercher !">
       <button class="close-btn" id="close-expanded">Fermer</button>
       
-      <!-- Conteneur étendu avec barre de filtres + zone de défilement -->
       <div class="expanded-content">
-        <div class="filter-bar" id="filter-bar"></div>
+        <!-- Conteneur qui englobe les deux lignes de filtres -->
+        <div class="filter-container">
+          <div class="filter-bar" id="main-filter-bar"></div>
+          <div class="filter-bar" id="sub-filter-bar"></div>
+        </div>
         <div class="expanded-scroll-area" id="expanded-results"></div>
       </div>
     </div>
     
-    <!-- L'ENCOCHE FUSIONNÉE -->
     <div class="see-all-notch" id="see-all-trigger">
       Tout voir <span>▼</span>
     </div>
@@ -388,9 +415,11 @@ const searchContainer = document.getElementById("search-container");
 const seeAllTrigger = document.getElementById("see-all-trigger");
 const closeExpanded = document.getElementById("close-expanded");
 const expandedResults = document.getElementById("expanded-results");
-const filterBar = document.getElementById("filter-bar");
+const mainFilterBar = document.getElementById("main-filter-bar");
+const subFilterBar = document.getElementById("sub-filter-bar");
 
-let currentCategoryFilter = "Tous";
+let currentMainFilter = "Tous";
+let currentSubFilter = "Tous";
 
 function highlight(text, query){
   if(!text || !query) return text || "";
@@ -410,6 +439,7 @@ function displayWordFromSupabase(row, query, targetContainer) {
   div.classList.add("result");
 
   const category = row.categorie || "Mot";
+  const subcategory = row.sous_categorie || null;
   let traductions = [];
   if (row.mots_francais) {
     traductions = Array.isArray(row.mots_francais) ? row.mots_francais : [row.mots_francais];
@@ -423,6 +453,9 @@ function displayWordFromSupabase(row, query, targetContainer) {
     
     html += `<div class="word-line">`;
     html += `<span class="category">${category}</span>`;
+    if(subcategory) {
+      html += `<span class="category subcategory-badge">${subcategory}</span>`;
+    }
     html += `<span>${contexteFr}${highlight(principalFr, query)} :</span>`;
     if (traductions[0]?.etymologie) {
       html += ` ${createEtymHtml(traductions[0].etymologie)}`;
@@ -437,6 +470,9 @@ function displayWordFromSupabase(row, query, targetContainer) {
   } else {
     html += `<div class="word-line">`;
     html += `<span class="category">${category}</span>`;
+    if(subcategory) {
+      html += `<span class="category subcategory-badge">${subcategory}</span>`;
+    }
     html += `<span>${highlight(row.mot, query)} :</span>`;
     if (row.etymologie) {
       html += ` ${createEtymHtml(row.etymologie)}`;
@@ -460,7 +496,7 @@ function displayWordFromSupabase(row, query, targetContainer) {
   targetContainer.appendChild(div);
 }
 
-// Fonction de filtrage combiné (Texte + Catégorie) pour la fenêtre déroulée
+// MODIFIÉ : Nouvelle logique de filtrage combinée Cascade (Catégorie + Sous-Catégorie) + Texte
 function applyFiltersInExpanded() {
   expandedResults.innerHTML = "";
   if (!window.allWordsCache) return;
@@ -468,13 +504,19 @@ function applyFiltersInExpanded() {
   let query = searchInput.value.toLowerCase().trim();
 
   const filtered = window.allWordsCache.filter(item => {
-    // 1. Filtre de catégorie
-    if (currentCategoryFilter !== "Tous") {
+    // 1. Validation de la catégorie principale
+    if (currentMainFilter !== "Tous") {
       const catItem = (item.categorie || "Mot").toLowerCase().trim();
-      if (catItem !== currentCategoryFilter.toLowerCase().trim()) return false;
+      if (catItem !== currentMainFilter.toLowerCase().trim()) return false;
+    }
+
+    // 2. Validation de la sous-catégorie
+    if (currentSubFilter !== "Tous") {
+      const subCatItem = (item.sous_categorie || "").toLowerCase().trim();
+      if (subCatItem !== currentSubFilter.toLowerCase().trim()) return false;
     }
     
-    // 2. Filtre textuel
+    // 3. Filtre textuel habituel
     const matchRather = item.mot && item.mot.toLowerCase().includes(query);
     const matchFr = item.mots_francais && (Array.isArray(item.mots_francais) ? item.mots_francais : [item.mots_francais]).some(f => f.traduction_fr && f.traduction_fr.toLowerCase().includes(query));
     
@@ -488,12 +530,58 @@ function applyFiltersInExpanded() {
   }
 }
 
-// Générateur dynamique des boutons de filtres
-function buildFilterButtons(data) {
-  filterBar.innerHTML = "";
-  currentCategoryFilter = "Tous";
+// MODIFIÉ : Génération dynamique de la ligne de sous-catégorie dépendante de la principale
+function updateSubCategoryBar() {
+  subFilterBar.innerHTML = "";
+  currentSubFilter = "Tous";
 
-  // Extraction des catégories uniques
+  if (currentMainFilter === "Tous" || !window.allWordsCache) {
+    subFilterBar.style.display = "none";
+    return;
+  }
+
+  // Trouver toutes les sous-catégories existantes pour la catégorie principale sélectionnée
+  const subCategories = new Set();
+  window.allWordsCache.forEach(item => {
+    const itemCat = (item.categorie || "").trim().toLowerCase();
+    if (itemCat === currentMainFilter.toLowerCase() && item.sous_categorie) {
+      subCategories.add(item.sous_categorie.trim());
+    }
+  });
+
+  // Si aucune sous-catégorie n'existe pour cette catégorie, on masque la ligne
+  if (subCategories.size === 0) {
+    subFilterBar.style.display = "none";
+    return;
+  }
+
+  subFilterBar.style.display = "flex";
+  const sortedSubCategories = ["Tous", ...Array.from(subCategories).sort()];
+
+  sortedSubCategories.forEach(subCat => {
+    const btn = document.createElement("button");
+    btn.classList.add("filter-btn");
+    if(subCat === "Tous") btn.classList.add("active");
+    btn.textContent = subCat;
+
+    btn.addEventListener("click", () => {
+      subFilterBar.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentSubFilter = subCat;
+      applyFiltersInExpanded();
+    });
+
+    subFilterBar.appendChild(btn);
+  });
+}
+
+function buildMainFilterButtons(data) {
+  mainFilterBar.innerHTML = "";
+  subFilterBar.innerHTML = "";
+  subFilterBar.style.display = "none";
+  currentMainFilter = "Tous";
+  currentSubFilter = "Tous";
+
   const categories = new Set();
   data.forEach(item => {
     if(item.categorie) categories.add(item.categorie.trim());
@@ -508,13 +596,16 @@ function buildFilterButtons(data) {
     btn.textContent = cat;
 
     btn.addEventListener("click", () => {
-      document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+      mainFilterBar.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
-      currentCategoryFilter = cat;
+      currentMainFilter = cat;
+      
+      // On met à jour la cascade des sous-catégories
+      updateSubCategoryBar();
       applyFiltersInExpanded();
     });
 
-    filterBar.appendChild(btn);
+    mainFilterBar.appendChild(btn);
   });
 }
 
@@ -523,13 +614,14 @@ seeAllTrigger.addEventListener("click", async () => {
   searchContainer.classList.add("expanded");
   seeAllTrigger.style.opacity = "0";
   seeAllTrigger.style.pointerEvents = "none";
-  filterBar.innerHTML = "";
+  mainFilterBar.innerHTML = "";
+  subFilterBar.innerHTML = "";
+  subFilterBar.style.display = "none";
   expandedResults.innerHTML = "<div style='color:#666; text-align:center; padding-top:30px; font-size:14px;'>Chargement complet de la base de données...</div>";
   resultsDiv.innerHTML = "";
   searchInput.value = "";
   searchInput.placeholder = "Filtrer dans tout le dictionnaire...";
 
-  // MODIFIÉ : Boucle de pagination pour récupérer absolument TOUS les mots sans la limite des 100 lignes
   let allRecords = [];
   let from = 0;
   let to = 99;
@@ -537,9 +629,10 @@ seeAllTrigger.addEventListener("click", async () => {
 
   try {
     while (hasMore) {
+      // MODIFIÉ : Ajout explicite de "sous_categorie" dans le select Supabase
       const { data, error } = await supabaseClient
         .from('mots_rather')
-        .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
+        .select('mot, categorie, sous_categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
         .order('mot', { ascending: true })
         .range(from, to);
 
@@ -557,8 +650,7 @@ seeAllTrigger.addEventListener("click", async () => {
 
     window.allWordsCache = allRecords.map(item => ({ ...item, directionRecherche: "RATHER_TO_FR" }));
     
-    // Initialise les filtres et l'affichage
-    buildFilterButtons(window.allWordsCache);
+    buildMainFilterButtons(window.allWordsCache);
     applyFiltersInExpanded();
 
   } catch (err) {
@@ -566,7 +658,6 @@ seeAllTrigger.addEventListener("click", async () => {
   }
 });
 
-// Fermeture de la fenêtre
 closeExpanded.addEventListener("click", () => {
   searchContainer.classList.remove("expanded");
   seeAllTrigger.style.opacity = "1";
@@ -574,7 +665,9 @@ closeExpanded.addEventListener("click", () => {
   searchInput.value = "";
   searchInput.placeholder = "Tape le mot que tu veux rechercher !";
   expandedResults.innerHTML = "";
-  filterBar.innerHTML = "";
+  mainFilterBar.innerHTML = "";
+  subFilterBar.innerHTML = "";
+  subFilterBar.style.display = "none";
   window.allWordsCache = null;
 });
 
@@ -582,24 +675,23 @@ closeExpanded.addEventListener("click", () => {
 searchInput.addEventListener("input", async () => {
   let query = searchInput.value.toLowerCase().trim();
   
-  // Cas 1 : Fenêtre ouverte, on applique le filtre combiné
   if (searchContainer.classList.contains("expanded")) {
     applyFiltersInExpanded();
     return;
   }
 
-  // Cas 2 : Mode de recherche classique (Fenêtre fermée)
   resultsDiv.innerHTML = "";
   if(!query) return;
 
+  // Ajout de sous_categorie également sur la recherche rapide
   const requeteRather = supabaseClient
     .from('mots_rather')
-    .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
+    .select('mot, categorie, sous_categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
     .ilike('mot', `%${query}%`);
 
   const requeteFrancais = supabaseClient
     .from('mots_francais')
-    .select('traduction_fr, contexte_fr, etymologie, mots_rather(mot, categorie, etymologie)')
+    .select('traduction_fr, contexte_fr, etymologie, mots_rather(mot, categorie, sous_categorie, etymologie)')
     .ilike('traduction_fr', `%${query}%`);
 
   const [resRather, resFrancais] = await Promise.all([requeteRather, requeteFrancais]);
@@ -615,6 +707,7 @@ searchInput.addEventListener("input", async () => {
           donneesFrancais.push({
             mot: ratherObj.mot,
             categorie: ratherObj.categorie,
+            sous_categorie: ratherObj.sous_categorie,
             etymologie: ratherObj.etymologie,
             mots_francais: [item]
           });
