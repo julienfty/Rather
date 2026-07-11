@@ -41,7 +41,6 @@ body {
   text-align: center;
 }
 
-/* Modifié : L'ombre globale entoure désormais tout l'ensemble (barre + encoche) */
 .search-wrapper {
   width:100%;
   max-width:932px;
@@ -49,9 +48,9 @@ body {
   display:flex;
   flex-direction:column;
   align-items:center;
-  filter: drop-shadow(0px 10px 30px rgba(0,0,0,0.4));
 }
 
+/* Modifié : L'ombre principale revient uniquement sur la barre */
 .rectangle {
   width:100%;
   height: 56px;
@@ -60,7 +59,8 @@ body {
   position:relative;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
-  z-index: 2;
+  z-index: 4;
+  box-shadow: 0px 10px 30px rgba(0,0,0,0.35);
 }
 
 .rectangle.expanded {
@@ -174,7 +174,7 @@ body {
   display: block;
 }
 
-/* MODIFIÉ : Encoche style iPhone authentique avec raccordement courbé */
+/* MODIFIÉ : L'encoche passe devant l'ombre de la barre et projette son ombre uniquement vers le bas */
 .see-all-notch {
   background: white;
   color: rgba(43,1,230,1);
@@ -190,15 +190,15 @@ body {
   align-items: center;
   gap: 1px;
   margin-top: -1px;
-  z-index: 1;
+  z-index: 3;
   transition: opacity 0.2s ease;
   position: relative;
+  box-shadow: 0px 10px 15px rgba(0,0,0,0.2); 
 }
 .see-all-notch span {
   font-size: 8px;
 }
 
-/* Courbures extérieures iPhone (gauche et droite du raccordement) */
 .see-all-notch::before, .see-all-notch::after {
   content: "";
   position: absolute;
@@ -367,7 +367,6 @@ body {
 
 <div id="global-tooltip"></div>
 
-<!-- COMPORTEMENT TOOLTIP -->
 <script>
 const globalTooltip = document.getElementById('global-tooltip');
 let activeIcon = null;
@@ -422,7 +421,6 @@ if (!isTouchDevice) {
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<!-- APPLICATION PRINCIPALE -->
 <script>
 const SUPABASE_URL = "https://hfrdzcjfienvegrofszz.supabase.co";
 const SUPABASE_KEY = "sb_publishable_U6qUMbeePU0ykN99-OQsNg_FGYTo0iZ";
@@ -442,8 +440,8 @@ let currentSubFilter = "Tous";
 
 function highlight(text, query){
   if(!text || !query) return text || "";
-  const regex = new RegExp(`(${query})`, 'gi');
-  return text.replace(regex, `<span class="highlight">$1</span>`);
+  const regex = new RegExp(`\\b(${query})\\b|(${query})`, 'gi');
+  return text.replace(regex, `<span class="highlight">$1$2</span>`);
 }
 
 function createEtymHtml(etymText) {
@@ -681,7 +679,7 @@ closeExpanded.addEventListener("click", () => {
   window.allWordsCache = null;
 });
 
-// --- RECHERCHE ET FILTRAGE EN DIRECT ---
+// --- RECHERCHE ET FILTRAGE EN DIRECT AVEC CORRESPONDANCE EXACTE ---
 searchInput.addEventListener("input", async () => {
   let query = searchInput.value.toLowerCase().trim();
   
@@ -730,7 +728,7 @@ searchInput.addEventListener("input", async () => {
   let meilleurScoreFrGlobal = 0;
 
   const resultatsScorés = listePlat.map(item => {
-    const ratherMot = item.mot ? item.mot.toLowerCase() : "";
+    const ratherMot = item.mot ? item.mot.toLowerCase().trim() : "";
     
     let scoreRather = 0;
     if (ratherMot === query) scoreRather = 100;
@@ -749,7 +747,7 @@ searchInput.addEventListener("input", async () => {
     if (item.mots_francais && Array.isArray(item.mots_francais)) {
       item.mots_francais.forEach(f => {
         if (f.traduction_fr) {
-          const trad = f.traduction_fr.toLowerCase();
+          const trad = f.traduction_fr.toLowerCase().trim();
           let currentFrScore = 0;
           if (trad === query) currentFrScore = 100;
           else if (trad.startsWith(query)) currentFrScore = 50;
@@ -794,8 +792,17 @@ searchInput.addEventListener("input", async () => {
       cleMotEtudie = item.mot.toLowerCase().trim();
     }
 
-    // MODIFIÉ : Sécurité sur l'espace retirée pour permettre les recherches multi-mots ("nous inclusif")
-    if (motsAutorises.has(cleMotEtudie) || motsAutorises.size < limiteMaxMotsDistincts) {
+    // MODIFIÉ : Filtrage strict pour éviter les faux-positifs ("je" dans "adjectif" ou "nous" vs "nous inclusif")
+    const estCorrespondanceExacte = (cleMotEtudie === query);
+    
+    if (estCorrespondanceExacte) {
+      // Pour une égalité parfaite ("nous" ou "nous inclusif"), on affiche TOUTES les fiches sans limite
+      displayWordFromSupabase(item, query, resultsDiv);
+    } else if (!query.includes(" ") && cleMotEtudie.includes(" ")) {
+      // Si la requête n'a pas d'espace ("nous"), on rejette les composés ("nous inclusif")
+      return;
+    } else if (motsAutorises.has(cleMotEtudie) || motsAutorises.size < limiteMaxMotsDistincts) {
+      // Sinon, on applique l'affichage classique des 5 premiers mots distincts pertinents
       motsAutorises.add(cleMotEtudie);
       displayWordFromSupabase(item, query, resultsDiv);
     }
