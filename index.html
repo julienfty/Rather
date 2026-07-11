@@ -564,7 +564,7 @@ function updateSubCategoryBar() {
   }
 
   subFilterBar.style.display = "flex";
-  const sortedSubCategories = ["Tous", ...Array.from(subCategories).sort()];
+  const sortedSubCategories = ["Tous", ...Array.from(subCategories).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))];
 
   sortedSubCategories.forEach(subCat => {
     const btn = document.createElement("button");
@@ -595,7 +595,7 @@ function buildMainFilterButtons(data) {
     if(item.categorie) categories.add(item.categorie.trim());
   });
 
-  const sortedCategories = ["Tous", ...Array.from(categories).sort()];
+  const sortedCategories = ["Tous", ...Array.from(categories).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))];
 
   sortedCategories.forEach(cat => {
     const btn = document.createElement("button");
