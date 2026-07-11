@@ -176,7 +176,7 @@ body {
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-// 2. CONFIGURATION DE TA CONNEXION (Mets tes vraies clés ici)
+// 2. CONFIGURATION DE TA CONNEXION
 const SUPABASE_URL = "https://hfrdzcjfienvegrofszz.supabase.co";
 const SUPABASE_KEY = "sb_publishable_U6qUMbeePU0ykN99-OQsNg_FGYTo0iZ";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -208,25 +208,27 @@ function displayWordFromSupabase(row, query) {
   const div = document.createElement("div");
   div.classList.add("result");
 
-  // On récupère la catégorie du mot Rather, ou une valeur par défaut s'il n'y en a pas
+  // On récupère la catégorie du mot Rather
   const category = row.categorie || "Mot";
   
-  // On commence à construire le HTML avec la catégorie et le mot Rather
+  // On commence à construire le HTML
   let html = `<span class="category">${category}</span><br>
               <span class="word">${highlight(row.mot, query)}</span> :`;
 
-  // ÉTAPE A : Est-ce qu'il y a une étymologie GLOBALE sur le mot ?
   if (row.etymologie) {
     html += ` ${createEtymHtml(row.etymologie)}`;
   }
 
-  // ÉTAPE B : On affiche toutes ses significations françaises liées
-  if (row.mots_francais && row.mots_francais.length > 0) {
-  row.mots_francais.forEach(sig => {
-      // S'il y a un contexte (ex: "Taille"), on l'affiche proprement
+  // Sécurité : On s'assure que mots_francais soit TOUJOURS un tableau, même si Supabase renvoie un objet solo
+  let traductions = [];
+  if (row.mots_francais) {
+    traductions = Array.isArray(row.mots_francais) ? row.mots_francais : [row.mots_francais];
+  }
+
+  // Affichage des significations françaises
+  if (traductions.length > 0) {
+    traductions.forEach(sig => {
       const contexte = sig.contexte_fr ? `<span class="category">(${sig.contexte_fr})</span> ` : '';
-      
-      // On affiche la traduction + l'étymologie SPÉCIFIQUE à ce sens s'il y en a une
       html += `<div class="subword">
                 ${contexte}${highlight(sig.traduction_fr, query)}
                 ${createEtymHtml(sig.etymologie)}
@@ -246,53 +248,69 @@ searchInput.addEventListener("input", async () => {
   resultsDiv.innerHTML = "";
   if(!query) return;
 
-  // Supabase gère déjà le flou avec 'ilike', on lui envoie le texte pur
   const rechercheTexte = query;
   const operateur = searchInput.value.includes(" ") ? 'eq' : 'ilike';
 
-  // REQUÊTE 1 : On cherche si ça correspond à un mot Rather (avec ta nouvelle colonne categorie !)
+  // REQUÊTE 1 : Recherche dans la table des mots Rather
   const requeteRather = supabaseClient
     .from('mots_rather')
-    .select('mot, categorie, etymologie, mots_francais!mots_rather_id(traduction_fr, contexte_fr, etymologie, categorie)')
+    .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie, categorie)')
     [operateur]('mot', rechercheTexte)
     .limit(5);
 
-  // REQUÊTE 2 : On cherche si ça correspond à une traduction française
+  // REQUÊTE 2 : Recherche directe dans la table Français (évite le bug de filtre imbriqué)
   const requeteFrancais = supabaseClient
-    .from('mots_rather')
-    .select('mot, categorie, etymologie, mots_francais!mots_rather_id(traduction_fr, contexte_fr, etymologie, categorie)')
-    [operateur]('mots_francais.traduction_fr', rechercheTexte)
+    .from('mots_francais')
+    .select('traduction_fr, contexte_fr, etymologie, categorie, mots_rather(mot, categorie, etymologie)')
+    [operateur]('traduction_fr', rechercheTexte)
     .limit(5);
 
-  // On lance les deux requêtes en même temps pour que ce soit instantané
+  // On lance les deux requêtes en même temps
   const [resRather, resFrancais] = await Promise.all([requeteRather, requeteFrancais]);
 
   if (resRather.error) console.error("Erreur recherche Rather :", resRather.error);
   if (resFrancais.error) console.error("Erreur recherche Français :", resFrancais.error);
 
-  // On fusionne les résultats des deux recherches
-  const listePlat = [...(resRather.data || []), ...(resFrancais.data || [])];
+  // On extrait et on harmonise les données pour la table Rather
+  const donneesRather = resRather.data || [];
 
-  // Ce log te permettra de voir tes beaux mots et leurs catégories dans la console !
+  // On transforme les données de la table Français pour qu'elles aient la même forme que la table Rather
+  const donneesFrancais = (resFrancais.data || []).map(item => {
+    if (!item.mots_rather) return null; // Si pas de mot Rather lié, on ignore
+    
+    // Si item.mots_rather est un tableau, on prend le premier élément
+    const ratherObj = Array.isArray(item.mots_rather) ? item.mots_rather[0] : item.mots_rather;
+    
+    return {
+      mot: ratherObj.mot,
+      categorie: ratherObj.categorie || item.categorie,
+      etymologie: ratherObj.etymologie,
+      mots_francais: [item]
+    };
+  }).filter(item => item !== null);
+
+  // Fusion des deux listes
+  const listePlat = [...donneesRather, ...donneesFrancais];
+
+  // Regarde ce super log dans ta console !
   console.log("Mots trouvés par Supabase :", listePlat);
 
-  // On élimine les doublons au cas où un mot correspondrait aux deux requêtes
+  // Élimination des doublons de mots Rather
   const resultatsUniques = [];
   const motsVus = new Set();
 
   listePlat.forEach(item => {
-    if (!motsVus.has(item.mot)) {
+    if (item.mot && !motsVus.has(item.mot)) {
       motsVus.add(item.mot);
       resultatsUniques.push(item);
     }
   });
 
-  // On affiche les 5 premiers résultats uniques trouvés !
+  // On affiche enfin les résultats !
   if (resultatsUniques.length > 0) {
     resultatsUniques.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
   }
 });
 </script>
-
 </body>
 </html>
