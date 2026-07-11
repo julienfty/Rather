@@ -203,15 +203,13 @@ function createEtymHtml(etymText) {
           </span>`;
 }
 
-// 3. LA NOUVELLE FONCTION D'AFFICHAGE ADAPTÉE À SUPABASE
+// 3. LA FONCTION D'AFFICHAGE ADAPTÉE À SUPABASE
 function displayWordFromSupabase(row, query) {
   const div = document.createElement("div");
   div.classList.add("result");
 
-  // On récupère la catégorie du mot Rather
   const category = row.categorie || "Mot";
   
-  // On commence à construire le HTML
   let html = `<span class="category">${category}</span><br>
               <span class="word">${highlight(row.mot, query)}</span> :`;
 
@@ -219,13 +217,12 @@ function displayWordFromSupabase(row, query) {
     html += ` ${createEtymHtml(row.etymologie)}`;
   }
 
-  // Sécurité : On s'assure que mots_francais soit TOUJOURS un tableau, même si Supabase renvoie un objet solo
+  // Sécurité : On s'assure que mots_francais soit TOUJOURS un tableau
   let traductions = [];
   if (row.mots_francais) {
     traductions = Array.isArray(row.mots_francais) ? row.mots_francais : [row.mots_francais];
   }
 
-  // Affichage des significations françaises
   if (traductions.length > 0) {
     traductions.forEach(sig => {
       const contexte = sig.contexte_fr ? `<span class="category">(${sig.contexte_fr})</span> ` : '';
@@ -242,37 +239,72 @@ function displayWordFromSupabase(row, query) {
   resultsDiv.appendChild(div);
 }
 
-// 4. L'ÉCOUTEUR DE RECHERCHE EN TEMPS RÉEL SUR SUPABASE
+// 4. L'ÉCOUTEUR DE RECHERCHE EN TEMPS RÉEL (Le vrai !)
 searchInput.addEventListener("input", async () => {
-  let query = searchInput.value.trim();
+  let query = searchInput.value.toLowerCase().trim();
   resultsDiv.innerHTML = "";
   if(!query) return;
 
-  console.log("--- TEST DE CONNEXION BRUTE ---");
-
-  // On demande TOUT sans aucun filtre pour voir si la table est vide ou non !
-  const { data: tousLesMots, error: err } = await supabaseClient
+  // REQUÊTE 1 : Recherche dans les mots Rather
+  const requeteRather = supabaseClient
     .from('mots_rather')
-    .select('mot, categorie, etymologie')
+    .select('mot, categorie, etymologie, mots_francais(traduction_fr, contexte_fr, etymologie)')
+    .ilike('mot', `%${query}%`)
     .limit(5);
 
-  if (err) {
-    console.error("Erreur brute Supabase :", err);
-    return;
+  // REQUÊTE 2 : Recherche dans les traductions françaises
+  const requeteFrancais = supabaseClient
+    .from('mots_francais')
+    .select('traduction_fr, contexte_fr, etymologie, mots_rather(mot, categorie, etymologie)')
+    .ilike('traduction_fr', `%${query}%`)
+    .limit(5);
+
+  const [resRather, resFrancais] = await Promise.all([requeteRather, requeteFrancais]);
+
+  if (resRather.error) console.error("Erreur recherche Rather :", resRather.error);
+  if (resFrancais.error) console.error("Erreur recherche Français :", resFrancais.error);
+
+  const donneesRather = resRather.data || [];
+  const donneesFrancais = [];
+
+  // Extraction des mots Rather liés aux traductions trouvées
+  if (resFrancais.data) {
+    resFrancais.data.forEach(item => {
+      if (item.mots_rather) {
+        const ratherObj = Array.isArray(item.mots_rather) ? item.mots_rather[0] : item.mots_rather;
+        if (ratherObj) {
+          donneesFrancais.push({
+            mot: ratherObj.mot,
+            categorie: ratherObj.categorie,
+            etymologie: ratherObj.etymologie,
+            mots_francais: [item]
+          });
+        }
+      }
+    });
   }
 
-  console.log("Contenu réel de ta table 'mots_rather' reçu :", tousLesMots);
+  // Fusion des résultats
+  const listePlat = [...donneesRather, ...donneesFrancais];
+  console.log("Mots trouvés par Supabase :", listePlat);
 
-  if (tousLesMots && tousLesMots.length > 0) {
-    tousLesMots.forEach(row => {
-      const div = document.createElement("div");
-      div.innerHTML = `<b>Mot trouvé :</b> ${row.mot} (Catégorie: ${row.categorie})`;
-      resultsDiv.appendChild(div);
-    });
-  } else {
-    console.log("La table 'mots_rather' renvoie 0 lignes. Elle est vide ou le projet est mauvais !");
+  // Nettoyage des doublons
+  const resultatsUniques = [];
+  const motsVus = new Set();
+
+  listePlat.forEach(item => {
+    if (item.mot && !motsVus.has(item.mot)) {
+      motsVus.add(item.mot);
+      resultatsUniques.push(item);
+    }
+  });
+
+  // Affichage final sur la page
+  if (resultatsUniques.length > 0) {
+    resultatsUniques.slice(0, 5).forEach(row => displayWordFromSupabase(row, query));
   }
 });
 </script>
+
 </body>
 </html>
