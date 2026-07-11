@@ -171,7 +171,7 @@ body {
   <div class="results" id="results"></div>
 </div>
 
-<script src="Rather.js"></script>
+
 <!-- 1. ON CHARGE LA BIBLIOTHÈQUE SUPABASE TOUT EN HAUT DU SCRIPT -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -179,7 +179,7 @@ body {
 // 2. CONFIGURATION DE TA CONNEXION (Mets tes vraies clés ici)
 const SUPABASE_URL = "https://hfrdzcjfienvegrofszz.supabase.co";
 const SUPABASE_KEY = "sb_publishable_U6qUMbeePU0ykN99-OQsNg_FGYTo0iZ";
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const searchInput = document.getElementById("search");
 const resultsDiv = document.getElementById("results");
@@ -248,7 +248,7 @@ searchInput.addEventListener("input", async () => {
 
   // On prépare la requête magique qui fouille dans les deux tables en même temps !
   // On demande le mot, sa catégorie, son étymologie globale, et TOUTES ses significations
-  let recherche = supabase
+  let recherche = supabaseClient
     .from('mots_rather')
     .select(`
       mot,
