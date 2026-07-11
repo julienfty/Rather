@@ -61,21 +61,32 @@ document.getElementById('translate-btn').addEventListener('click', async () => {
     
     // On extrait juste les tags pour la recherche en base
     const tagsOnly = tokens.map(t => t.tag);
-    
-   // B. Recherche de la règle (Version robuste)
-const { data: regles, error } = await sb
-    .from('regle_composition')
-    .select('*')
-    .contains('ordre_tags', tagsOnly) // Vérifie que notre tableau est contenu dans la base
-    .filter('ordre_tags', 'cs', tagsOnly); // 'cs' (contains) assure que les tailles sont identiques
+  // B. Recherche de la règle (VERSION INFALLIBLE)
+    // On ne demande pas à Supabase de filtrer, on récupère tout et on filtre en JS
+    const { data: toutesLesRegles, error } = await sb
+        .from('regle_composition')
+        .select('*');
 
-    if (error || !regles || regles.length === 0) {
-        resultArea.innerText = "Règle non trouvée.";
+    if (error) {
+        console.error("Erreur Supabase:", error);
+        resultArea.innerText = "Erreur DB.";
         return;
     }
 
-    const regle = regles[0];
-    
+    // On cherche celle qui correspond exactement au JSON de nos tags
+    const regle = toutesLesRegles.find(r => JSON.stringify(r.ordre_tags) === JSON.stringify(tagsOnly));
+
+    if (!regle) {
+        resultArea.innerText = "Aucune règle trouvée pour ces tags.";
+        return;
+    }
+
+    // C. Exécution (on passe les tokens pour que ton algo puisse travailler)
+    if (typeof ActionsComposition[regle.action] === 'function') {
+        resultArea.innerText = ActionsComposition[regle.action](tokens);
+    } else {
+        resultArea.innerText = "Action '" + regle.action + "' non définie.";
+    }
     // C. Exécution de l'algorithme (on passe les tokens complets)
     if (typeof ActionsComposition[regle.action] === 'function') {
         resultArea.innerText = ActionsComposition[regle.action](tokens);
