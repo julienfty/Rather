@@ -1,35 +1,16 @@
 const sb = window.supabaseClient;
 const resultArea = document.getElementById('result-area');
 
-// 2. Fonctions de composition (Les Algorithmes)
-const ActionsComposition = {
-    // Exemple : ["PRONOM", "GENRE", "FLEXION"]
-    assembler_pronom: (tokens) => {
-        const p = tokens.find(t => t.tag === 'PRONOM')?.valeur || '';
-        const g = tokens.find(t => t.tag === 'GENRE')?.valeur || '';
-        // Ton algo ici
-        if (p === 'nia' && g === 'x') return "Je";
-        return "Pronom inconnu";
-    },
-
-    // Exemple : ["NOMBRE", "GENRE", "PRONOM", "GENRE", "FLEXION"]
-    assembler_pronom_inex: (tokens) => {
-        // Accède aux morceaux nécessaires pour ton algo
-        const pronom = tokens.find(t => t.tag === 'PRONOM')?.valeur;
-        // ... ici tu fais tes calculs de fusion, de transformation, etc.
-        return `Traduction complexe pour le pronom ${pronom}`;
-    }
-};
-
-// 3. Tokenizer amélioré (garde la valeur ET le tag)
+// 3. Tokenizer (Dynamique : utilise la base pour découper)
 async function tokenize(word) {
     const { data: briques, error } = await sb.from('briques').select('code, tag_machine');
-    if (error) return null;
+    if (error || !briques) return null;
     
+    // Tri par longueur descendante pour éviter de couper "nia" si "ni" existe
     briques.sort((a, b) => b.code.length - a.code.length);
 
     let remaining = word;
-    let tokens = []; // Maintenant un tableau d'objets {tag, valeur}
+    let tokens = [];
 
     while (remaining.length > 0) {
         let found = false;
@@ -41,56 +22,61 @@ async function tokenize(word) {
                 break;
             }
         }
-        if (!found) return null;
+        if (!found) return null; // Mot impossible à découper avec les briques actuelles
     }
     return tokens;
 }
 
-// 4. Moteur principal
+// 4. Traducteur dynamique (Additionne les sens trouvés en base)
+async function construireSensFinal(tokens) {
+    // Récupère toutes les briques pour avoir les sens_fr
+    const { data: briques } = await sb.from('briques').select('code, sens_fr');
+    
+    const sensParts = tokens.map(token => {
+        const brique = briques.find(b => b.code === token.valeur);
+        return brique ? brique.sens_fr : "???";
+    });
+
+    return sensParts.join(" + ");
+}
+
+// 5. Moteur principal
 document.getElementById('translate-btn').addEventListener('click', async () => {
     const text = document.getElementById('source-text').value.trim();
     if (!text) return;
 
-    resultArea.innerText = "Recherche...";
+    resultArea.innerText = "Analyse en cours...";
 
+    // A. Découpage
     const tokens = await tokenize(text);
     if (!tokens) {
-        resultArea.innerText = "Erreur : Mot inconnu.";
+        resultArea.innerText = "Erreur : Ce mot ne semble pas exister dans la base.";
         return;
     }
     
-    // On extrait juste les tags pour la recherche en base
     const tagsOnly = tokens.map(t => t.tag);
-  // B. Recherche de la règle (VERSION INFALLIBLE)
-    // On ne demande pas à Supabase de filtrer, on récupère tout et on filtre en JS
-    const { data: toutesLesRegles, error } = await sb
-        .from('regle_composition')
-        .select('*');
 
+    // B. Vérification de la règle en base
+    const { data: toutesLesRegles, error } = await sb.from('regle_composition').select('ordre_tags, action');
+    
     if (error) {
-        console.error("Erreur Supabase:", error);
-        resultArea.innerText = "Erreur DB.";
+        resultArea.innerText = "Erreur de connexion base.";
         return;
     }
 
-    // On cherche celle qui correspond exactement au JSON de nos tags
     const regle = toutesLesRegles.find(r => JSON.stringify(r.ordre_tags) === JSON.stringify(tagsOnly));
 
     if (!regle) {
-        resultArea.innerText = "Aucune règle trouvée pour ces tags.";
+        resultArea.innerText = "Syntaxe correcte mais aucune règle de composition définie pour ces tags.";
         return;
     }
 
-    // C. Exécution (on passe les tokens pour que ton algo puisse travailler)
-    if (typeof ActionsComposition[regle.action] === 'function') {
-        resultArea.innerText = ActionsComposition[regle.action](tokens);
-    } else {
-        resultArea.innerText = "Action '" + regle.action + "' non définie.";
-    }
-    // C. Exécution de l'algorithme (on passe les tokens complets)
-    if (typeof ActionsComposition[regle.action] === 'function') {
-        resultArea.innerText = ActionsComposition[regle.action](tokens);
-    } else {
-        resultArea.innerText = "Action '" + regle.action + "' non définie.";
-    }
+    // C. Assemblage dynamique du sens
+    const sensFinal = await construireSensFinal(tokens);
+    
+    // Affichage : "Traduction : 1P + feminin + pluriel"
+    resultArea.innerText = `Traduction : ${sensFinal}`;
+    
+    console.log("Règle appliquée :", regle.action);
+    console.log("Sens détaillé :", sensFinal);
 });
