@@ -42,8 +42,9 @@ document.getElementById('translate-btn').addEventListener('click', async () => {
     
     const tagsOnly = tokens.map(t => t.tag);
 
-    // B. Validation de la structure via regle_composition
-    const { data: toutesLesRegles, error: errRegles } = await sb.from('regle_composition').select('ordre_tags, action, cat_final');
+    // B. Validation et récupération de la règle via regle_composition
+    // On peut y ajouter un champ par exemple 'traduction_id' ou lier via la catégorie
+    const { data: toutesLesRegles, error: errRegles } = await sb.from('regle_composition').select('*');
     if (errRegles) {
         resultArea.innerText = "Erreur de lecture des règles.";
         return;
@@ -55,30 +56,25 @@ document.getElementById('translate-btn').addEventListener('click', async () => {
         return;
     }
 
-    // C. Récupération des sens_fr de chaque atome via leur ID ou code
-    const { data: briquesDetails, error: errBriques } = await sb.from('briques').select('id, code, sens_fr');
-    if (errBriques) {
-        resultArea.innerText = "Erreur de lecture des briques.";
+    // C. Récupération du mot français associé dans la base
+    // Si ta règle est liée à un mot français/rather (via un ID de liaison ou une correspondance de catégorie)
+    const { data: motsFr, error: errMots } = await sb
+        .from('mots_francais')
+        .select('traduction_fr, categorie');
+
+    if (errMots) {
+        resultArea.innerText = "Erreur de lecture du dictionnaire français.";
         return;
     }
 
-    // On associe chaque token à son sens_fr dans la base
-    const sensAtomes = tokens.map(token => {
-        const b = briquesDetails.find(b => b.id === token.id);
-        return b ? b.sens_fr : "";
-    });
+    // On cherche le mot français qui correspond à la catégorie finale de la règle (ex: "PRONOM")
+    // (Ou mieux : si tu ajoutes une colonne 'mot_id' ou 'traduction_defaut' dans regle_composition)
+    const correspondanceFr = motsFr.find(m => m.categorie === regle.cat_final);
 
-    // Exemple : ["P1", "feminin", "pluriel"]
-    console.log("Sens combinés des atomes :", sensAtomes);
-
-    // D. Recherche du sens final dans la base (via mots_francais ou association)
-    // Ici, on cherche par exemple si un mot français correspond à la catégorie et aux critères
-    // (Tu peux adapter cette requête selon la structure exacte de ta table mots_francais)
-    const { data: motsFr } = await sb.from('mots_francais').select('traduction_fr, contexte_fr');
-
-    // Affichage dynamique combiné des sens_fr trouvés
-    const sensBrutAssemble = sensAtomes.join(" + ");
-    
-    // Résultat affiché proprement
-    resultArea.innerText = `Traduction : [${regle.cat_final}] -> ${sensBrutAssemble}`;
+    if (correspondanceFr) {
+        // Affiche simplement le mot propre (ex: "nous", sans fioritures)
+        resultArea.innerText = `Traduction : ${correspondanceFr.traduction_fr}`;
+    } else {
+        resultArea.innerText = `Traduction : [${regle.cat_final}] (Mot français non lié)`;
+    }
 });
